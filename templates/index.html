@@ -542,7 +542,8 @@
 
     <script>
         // Add base URL configuration
-        const BASE_URL = '/liarsbars_at_home';
+        const isGitHubPages = window.location.hostname.includes('github.io');
+        const BASE_URL = isGitHubPages ? '/liarsbars_at_home' : '';
         
         // Register Service Worker
         if ('serviceWorker' in navigator) {
@@ -633,7 +634,7 @@
 
         async function selectRandomTable() {
             try {
-                const response = await fetch('/select_table', {
+                const response = await fetch(BASE_URL + '/select_table', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -729,7 +730,7 @@
             
             if (name) {
                 try {
-                    const response = await fetch('/add_player', {
+                    const response = await fetch(BASE_URL + '/add_player', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -757,7 +758,7 @@
         }
 
         async function selectPlayer(playerName) {
-            const response = await fetch('/select_player', {
+            const response = await fetch(BASE_URL + '/select_player', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -776,7 +777,7 @@
 
         async function shoot() {
             const currentPlayer = document.getElementById('currentPlayer').textContent;
-            const response = await fetch('/shoot', {
+            const response = await fetch(BASE_URL + '/shoot', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -820,7 +821,7 @@
         }
 
         async function resetGame() {
-            const response = await fetch('/reset', {
+            const response = await fetch(BASE_URL + '/reset', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -845,7 +846,7 @@
         }
 
         async function updateScoreboard() {
-            const response = await fetch('/scores');
+            const response = await fetch(BASE_URL + '/scores');
             const scores = await response.json();
             
             const scoresDiv = document.getElementById('scores');
@@ -857,7 +858,7 @@
         }
 
         async function updateGameState() {
-            fetch('/game_state')
+            fetch(BASE_URL + '/game_state')
                 .then(response => response.json())
                 .then(state => {
                     document.getElementById('currentPlayer').textContent = state.current_player || '-';
@@ -925,7 +926,7 @@
         }
 
         async function resetScoreboard() {
-            const response = await fetch('/reset_scoreboard', {
+            const response = await fetch(BASE_URL + '/reset_scoreboard', {
                 method: 'POST'
             });
             const data = await response.json();
@@ -935,7 +936,7 @@
 
         async function loadPreviousPlayers() {
             try {
-                const response = await fetch('/previous_players');
+                const response = await fetch(BASE_URL + '/previous_players');
                 const previousPlayers = await response.json();
                 const previousPlayersList = document.getElementById('previousPlayersList');
                 previousPlayersList.innerHTML = '';
@@ -976,7 +977,7 @@
             playerList.classList.add('spinning');
             
             try {
-                const response = await fetch('/spin', {
+                const response = await fetch(BASE_URL + '/spin', {
                     method: 'POST'
                 });
                 const data = await response.json();
