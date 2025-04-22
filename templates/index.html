@@ -443,6 +443,17 @@
         .last-played-card:hover {
             transform: scale(1.05);
         }
+        .player-card.eliminated {
+            opacity: 0.5;
+            filter: grayscale(1);
+            pointer-events: none;
+        }
+        .player-stats.eliminated {
+            background: rgba(231, 76, 60, 0.2);
+        }
+        .player-stats.survived {
+            background: rgba(46, 204, 113, 0.2);
+        }
     </style>
 </head>
 <body>
@@ -537,11 +548,19 @@
         const isGitHubPages = window.location.hostname.includes('github.io');
         const BASE_URL = isGitHubPages ? '/liarsbars_at_home' : '';
         
-        // Initialize game state
-        let selectedTable = '';
-        let players = [];
-        let currentChambers = 6;
-        let currentPage = 1;
+        // Game state
+        const gameState = {
+            selectedTable: '',
+            players: [],
+            currentChambers: 6,
+            currentPage: 1,
+            currentPlayer: null,
+            bulletsUsed: 0,
+            roundNumber: 1,
+            scores: {},
+            eliminated: new Set(),
+            tables: ['Table 1', 'Table 2', 'Table 3', 'Table 4', 'VIP Table']
+        };
 
         // Add event listeners when DOM is loaded
         document.addEventListener('DOMContentLoaded', () => {
@@ -611,27 +630,151 @@
             document.getElementById('probability').textContent = probability + '%';
         }
 
-        // Update all fetch calls to handle both local and GitHub Pages environments
         async function selectRandomTable() {
             try {
-                const response = await fetch(`${BASE_URL}/select_table`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-                const data = await response.json();
-                if (data.table) {
-                    selectedTable = data.table;
-                    document.getElementById('currentTable').textContent = selectedTable;
-                    showMessage(`Selected ${selectedTable}`, 'success');
-                } else {
-                    showMessage('Failed to select table', 'error');
-                }
+                const randomIndex = Math.floor(Math.random() * gameState.tables.length);
+                const table = gameState.tables[randomIndex];
+                gameState.selectedTable = table;
+                document.getElementById('currentTable').textContent = table;
+                showMessage(`Selected ${table}`, 'success');
             } catch (error) {
                 console.error('Error selecting table:', error);
                 showMessage('Error selecting table. Please try again.', 'error');
             }
+        }
+
+        async function addPlayer() {
+            const nameInput = document.getElementById('playerName');
+            const name = nameInput.value.trim();
+            
+            if (name) {
+                if (gameState.players.includes(name)) {
+                    showMessage('Player already exists', 'error');
+                    return;
+                }
+                
+                gameState.players.push(name);
+                showMessage(`Added player ${name}`, 'success');
+                nameInput.value = '';
+                updatePlayerList();
+                updateLastPlayedGrid();
+                
+                // Save to localStorage
+                const previousPlayers = new Set(JSON.parse(localStorage.getItem('previousPlayers') || '[]'));
+                previousPlayers.add(name);
+                localStorage.setItem('previousPlayers', JSON.stringify([...previousPlayers]));
+            } else {
+                showMessage('Please enter a player name', 'error');
+            }
+        }
+
+        async function spin() {
+            const playerList = document.getElementById('orderPlayerList');
+            const spinButton = document.getElementById('spinBtn');
+            const firstPlayerDisplay = document.getElementById('firstPlayerDisplay');
+            
+            if (gameState.players.length < 2) {
+                showMessage('Need at least 2 players to start', 'error');
+                return;
+            }
+            
+            firstPlayerDisplay.textContent = '';
+            spinButton.disabled = true;
+            playerList.classList.add('spinning');
+            
+            try {
+                // Simulate spinning animation
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                const randomIndex = Math.floor(Math.random() * gameState.players.length);
+                const selectedPlayer = gameState.players[randomIndex];
+                gameState.currentPlayer = selectedPlayer;
+                
+                firstPlayerDisplay.textContent = `First Player: ${selectedPlayer}`;
+                firstPlayerDisplay.style.color = '#3498db';
+                showMessage(`${selectedPlayer} goes first!`, 'success');
+                
+                updateGameState();
+            } catch (error) {
+                showMessage('Error selecting first player', 'error');
+            } finally {
+                playerList.classList.remove('spinning');
+                spinButton.disabled = false;
+            }
+        }
+
+        async function shoot() {
+            const currentPlayer = gameState.currentPlayer;
+            if (!currentPlayer) {
+                showMessage('No current player selected', 'error');
+                return;
+            }
+            
+            const hit = Math.random() < (1 / gameState.currentChambers);
+            gameState.bulletsUsed++;
+            
+            const resultArea = document.getElementById('resultArea');
+            if (hit) {
+                gameState.eliminated.add(currentPlayer);
+                resultArea.innerHTML = `<p style="color: red;">BANG! ${currentPlayer} is eliminated!</p>`;
+                showMessage(`BANG! ${currentPlayer} is eliminated!`, 'error');
+            } else {
+                resultArea.innerHTML = `<p style="color: green;">Click! ${currentPlayer} survives!</p>`;
+                showMessage(`Click! ${currentPlayer} survives!`, 'success');
+            }
+            
+            // Move to next player
+            const activePlayers = gameState.players.filter(p => !gameState.eliminated.has(p));
+            if (activePlayers.length <= 1) {
+                // Game over
+                if (activePlayers.length === 1) {
+                    const winner = activePlayers[0];
+                    resultArea.innerHTML = `<p style="color: green;">Game Over! ${winner} wins!</p>`;
+                    showMessage(`Game Over! ${winner} wins!`, 'success');
+                    gameState.scores[winner] = (gameState.scores[winner] || 0) + 1;
+                } else {
+                    resultArea.innerHTML = `<p>Game Over! No players remaining.</p>`;
+                    showMessage('Game Over! No players remaining.', 'error');
+                }
+                document.getElementById('shootBtn').disabled = true;
+            } else {
+                const currentIndex = gameState.players.indexOf(currentPlayer);
+                let nextIndex = (currentIndex + 1) % gameState.players.length;
+                while (gameState.eliminated.has(gameState.players[nextIndex])) {
+                    nextIndex = (nextIndex + 1) % gameState.players.length;
+                }
+                gameState.currentPlayer = gameState.players[nextIndex];
+            }
+            
+            updateGameState();
+            updateScoreboard();
+        }
+
+        function resetGame() {
+            gameState.selectedTable = '';
+            gameState.currentPlayer = null;
+            gameState.bulletsUsed = 0;
+            gameState.roundNumber++;
+            gameState.eliminated.clear();
+            
+            document.getElementById('currentTable').textContent = 'Not selected';
+            document.getElementById('firstPlayerDisplay').textContent = '';
+            document.getElementById('shootBtn').disabled = false;
+            document.getElementById('resultArea').innerHTML = '';
+            
+            updatePlayerList();
+            showPage(1);
+            updateGameState();
+            showMessage('Game reset for next round!', 'success');
+        }
+
+        function updateGameState() {
+            document.getElementById('currentPlayer').textContent = gameState.currentPlayer || '-';
+            document.getElementById('roundNumber').textContent = gameState.roundNumber;
+            
+            updateBulletDisplay(gameState.bulletsUsed, gameState.currentChambers);
+            updateGamePlayerList();
+            updateRoundStats();
         }
 
         // Update page navigation
@@ -648,11 +791,11 @@
         }
 
         function nextPage(currentPageNum) {
-            if (currentPageNum === 1 && !selectedTable) {
+            if (currentPageNum === 1 && !gameState.selectedTable) {
                 showMessage('Please select a table first', 'error');
                 return;
             }
-            if (currentPageNum === 2 && players.length < 2) {
+            if (currentPageNum === 2 && gameState.players.length < 2) {
                 showMessage('Please add at least 2 players', 'error');
                 return;
             }
@@ -680,7 +823,112 @@
             }, 3000);
         }
 
-        // ... rest of your existing JavaScript code ...
+        function updatePlayerList() {
+            const playerListDiv = document.getElementById('playerList');
+            playerListDiv.innerHTML = '';
+            gameState.players.forEach(player => {
+                if (!playerAvatars[player]) {
+                    playerAvatars[player] = getRandomAvatar();
+                }
+                const avatar = playerAvatars[player];
+                const isEliminated = gameState.eliminated.has(player);
+                playerListDiv.innerHTML += `
+                    <div class="player-card ${isEliminated ? 'eliminated' : ''}">
+                        <div class="avatar" style="background: ${avatar.gradient}">
+                            ${avatar.emoji}
+                        </div>
+                        <p>${player}</p>
+                    </div>
+                `;
+            });
+        }
+
+        function updateGamePlayerList() {
+            const gamePlayerListDiv = document.getElementById('gamePlayerList');
+            gamePlayerListDiv.innerHTML = '';
+            gameState.players.forEach(player => {
+                const isCurrent = player === gameState.currentPlayer;
+                const isEliminated = gameState.eliminated.has(player);
+                if (!playerAvatars[player]) {
+                    playerAvatars[player] = getRandomAvatar();
+                }
+                const avatar = playerAvatars[player];
+                gamePlayerListDiv.innerHTML += `
+                    <div class="player-card ${isCurrent ? 'current' : ''} ${isEliminated ? 'eliminated' : ''}" onclick="selectPlayer('${player}')">
+                        <div class="avatar" style="background: ${avatar.gradient}">
+                            ${avatar.emoji}
+                        </div>
+                        <p>${player}</p>
+                    </div>
+                `;
+            });
+        }
+
+        function updateRoundStats() {
+            const roundStatsDiv = document.getElementById('roundStats');
+            if (!roundStatsDiv) return;
+            
+            let html = `
+                <h3>Round ${gameState.roundNumber} Stats</h3>
+                <div class="round-summary">
+                    <p>Current Round Statistics</p>
+                </div>
+            `;
+            
+            gameState.players.forEach(player => {
+                const isEliminated = gameState.eliminated.has(player);
+                const avatar = playerAvatars[player] || getRandomAvatar();
+                html += `
+                    <div class="player-stats ${isEliminated ? 'eliminated' : 'survived'}">
+                        <div class="avatar" style="background: ${avatar.gradient}">
+                            ${avatar.emoji}
+                        </div>
+                        <span>${player}</span>
+                        <span>Status: ${isEliminated ? 'Eliminated' : 'Alive'}</span>
+                    </div>
+                `;
+            });
+            
+            roundStatsDiv.innerHTML = html;
+        }
+
+        function updateScoreboard() {
+            const scoresDiv = document.getElementById('scores');
+            if (!scoresDiv) return;
+            
+            scoresDiv.innerHTML = '<h3>Overall Scores</h3>';
+            
+            const sortedScores = Object.entries(gameState.scores)
+                .sort(([,a], [,b]) => b - a);
+            
+            if (sortedScores.length === 0) {
+                scoresDiv.innerHTML += '<p>No scores yet</p>';
+                return;
+            }
+            
+            sortedScores.forEach(([player, score]) => {
+                const avatar = playerAvatars[player] || getRandomAvatar();
+                scoresDiv.innerHTML += `
+                    <div class="player-stats">
+                        <div class="avatar" style="background: ${avatar.gradient}">
+                            ${avatar.emoji}
+                        </div>
+                        <span>${player}</span>
+                        <span>Wins: ${score}</span>
+                    </div>
+                `;
+            });
+        }
+
+        function selectPlayer(playerName) {
+            if (gameState.eliminated.has(playerName)) {
+                showMessage('This player is eliminated', 'error');
+                return;
+            }
+            gameState.currentPlayer = playerName;
+            showMessage(`Selected ${playerName}`, 'success');
+            updateGameState();
+        }
     </script>
 </body>
 </html> 
