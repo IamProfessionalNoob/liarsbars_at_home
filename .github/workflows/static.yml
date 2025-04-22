@@ -1,0 +1,50 @@
+name: Deploy static content to Pages
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+      - name: Build
+        run: |
+          mkdir -p build
+          mkdir -p build/static/icons
+          cp -r templates/* build/
+          cp -r static/* build/static/
+          # Update paths in index.html
+          sed -i 's|href="static/|href="/liarsbars_at_home/static/|g' build/index.html
+          sed -i 's|src="static/|src="/liarsbars_at_home/static/|g' build/index.html
+          # Ensure the base href is correct
+          sed -i 's|<base href=.*>|<base href="/liarsbars_at_home/">|g' build/index.html
+          # Create directories if they don't exist
+          mkdir -p build/static
+          # List contents for debugging
+          ls -la build/
+          ls -la build/static/
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'build'
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
