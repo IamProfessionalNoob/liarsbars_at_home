@@ -5,11 +5,11 @@ from game import LiarsBarRevolver
 app = Flask(__name__, static_folder='static')
 game = LiarsBarRevolver()
 
-# Get the base URL from environment variable or use default
-BASE_URL = os.environ.get('BASE_URL', '')
+# Set base URL for GitHub Pages
+BASE_URL = '/liarsbars_at_home'
 
 @app.route('/')
-def home():
+def index():
     return render_template('index.html', base_url=BASE_URL)
 
 @app.route('/manifest.json')
