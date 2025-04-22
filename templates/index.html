@@ -617,6 +617,54 @@
             text-align: center;
             color: var(--text-light);
         }
+
+        #gamePlayerList {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .player-card {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            padding: 20px;
+            border-radius: var(--border-radius);
+            text-align: center;
+            color: var(--text-light);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .player-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+        }
+
+        .player-card.current {
+            background: linear-gradient(135deg, var(--accent-color), #d35400);
+            transform: scale(1.05);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+            border: 3px solid #f1c40f;
+        }
+
+        .player-card.eliminated {
+            opacity: 0.5;
+            filter: grayscale(1);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .player-card.eliminated:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
+        .player-card p {
+            margin-top: 10px;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
     </style>
 </head>
 <body>
@@ -944,13 +992,31 @@
         }
 
         function resetGame() {
+            // Reset all game state
+            gameState.currentPage = 1;
+            gameState.selectedTable = null;
             gameState.currentPlayer = null;
             gameState.bullets = gameState.currentChambers;
             gameState.eliminated = new Set();
             gameState.roundNumber++;
+            gameState.players = [];
+
+            // Reset UI elements
+            document.getElementById('currentTable').textContent = 'Not selected';
+            document.getElementById('playerList').innerHTML = '';
+            document.getElementById('orderPlayerList').innerHTML = '';
+            document.getElementById('gamePlayerList').innerHTML = '';
+            document.getElementById('resultArea').innerHTML = '';
+            document.getElementById('firstPlayerDisplay').textContent = '';
+            document.getElementById('playerName').value = '';
+
+            // Go back to first page
+            showPage(1);
+            
+            // Update displays
             updateGameState();
             updateRoundStats();
-            showMessage('Game reset for next round!', 'success');
+            showMessage('Game reset! Starting new round...', 'success');
         }
 
         function resetScoreboard() {
@@ -1149,27 +1215,15 @@
             });
         }
 
-        function selectPlayer(playerName) {
-            fetch(BASE_URL + '/select_player', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ name: playerName })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    updateGameState();
-                    showMessage(`Selected player: ${playerName}`, 'success');
-                } else {
-                    showMessage(data.message || 'Error selecting player', 'error');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showMessage('Error selecting player', 'error');
-            });
+        function selectPlayer(player) {
+            if (gameState.eliminated.has(player)) {
+                showMessage('This player is eliminated!', 'error');
+                return;
+            }
+
+            gameState.currentPlayer = player;
+            updateGameState();
+            showMessage(`Selected player: ${player}`, 'success');
         }
 
         // Update page navigation
