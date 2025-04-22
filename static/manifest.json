@@ -1,0 +1,23 @@
+{
+    "name": "Liar's Bar Revolver",
+    "short_name": "Liar's Bar",
+    "description": "A multiplayer game of chance and deception",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#f5f6fa",
+    "theme_color": "#2c3e50",
+    "icons": [
+        {
+            "src": "/static/icons/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "/static/icons/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ]
+} 
