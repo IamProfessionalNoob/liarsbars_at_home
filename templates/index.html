@@ -173,15 +173,15 @@
         }
 
         .bullet-display {
-            background: linear-gradient(135deg, var(--primary-color), #34495e);
-            padding: var(--spacing);
-            border-radius: var(--border-radius);
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 10px;
-            margin: var(--spacing) 0;
-            flex-wrap: wrap;
+            margin: 20px 0;
+            padding: 20px;
+            background: linear-gradient(135deg, var(--primary-color), #34495e);
+            border-radius: var(--border-radius);
+            position: relative;
         }
 
         .bullet {
@@ -197,6 +197,25 @@
         .bullet.remaining {
             color: #f1c40f;
             text-shadow: 0 0 10px rgba(241, 196, 15, 0.5);
+        }
+
+        .bullet.current-chamber {
+            color: #e74c3c;
+            transform: scale(1.2);
+            text-shadow: 0 0 10px rgba(231, 76, 60, 0.5);
+        }
+
+        .fa-gun {
+            font-size: 24px;
+            color: #bdc3c7;
+        }
+
+        .shots-info {
+            position: absolute;
+            bottom: 5px;
+            right: 10px;
+            font-size: 12px;
+            color: #bdc3c7;
         }
 
         .game-info {
@@ -665,6 +684,85 @@
             font-weight: bold;
             font-size: 1.2em;
         }
+
+        .bullet-display {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin: 20px 0;
+            padding: 20px;
+            background: linear-gradient(135deg, var(--primary-color), #34495e);
+            border-radius: var(--border-radius);
+        }
+
+        .bullet {
+            font-size: 24px;
+            color: #95a5a6;
+            transition: all 0.3s ease;
+        }
+
+        .bullet.current-chamber {
+            color: #f1c40f;
+            text-shadow: 0 0 10px rgba(241, 196, 15, 0.5);
+            transform: scale(1.2);
+        }
+
+        .spin-button {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            font-size: 1.2em;
+            padding: 15px 40px;
+            margin: 20px auto;
+            display: block;
+        }
+
+        .spin-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+        }
+
+        .spin-button:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        #spinCylinderBtn {
+            margin-bottom: 10px;
+        }
+
+        .eliminated-text {
+            color: #e74c3c;
+            font-weight: bold;
+            font-size: 0.8em;
+            margin-top: 5px;
+            display: block;
+        }
+
+        .player-card.eliminated {
+            opacity: 0.7;
+            filter: grayscale(1);
+            cursor: not-allowed;
+            background: linear-gradient(135deg, #7f8c8d, #95a5a6);
+        }
+
+        .player-card.eliminated:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
+        #resultArea {
+            color: #e74c3c;
+            font-weight: bold;
+            text-align: center;
+            margin: 10px 0;
+        }
+
+        .player-shots {
+            font-size: 0.8em;
+            margin-top: 5px;
+            color: #bdc3c7;
+        }
     </style>
 </head>
 <body>
@@ -712,7 +810,7 @@
             <h2>Randomize First Player</h2>
             <div class="spinner-container">
                 <div id="firstPlayerDisplay" class="first-player-display"></div>
-                <button onclick="spin()" id="spinBtn" class="spin-button">Spin to Choose First Player!</button>
+                <button onclick="spinForFirstPlayer()" id="spinBtn" class="spin-button">Spin to Choose First Player!</button>
             </div>
             <div class="player-list" id="orderPlayerList"></div>
             <div class="navigation">
@@ -767,13 +865,16 @@
             selectedTable: null,
             players: [],
             currentPlayer: null,
-            bullets: 6,
+            currentChambers: 6,
+            bulletPosition: Math.floor(Math.random() * 6),
+            cylinderPosition: 0,
+            playerShots: {}, // Track shots per player
             scores: {},
             previousPlayers: [],
             tables: ['King Table', 'Queen Table', 'Ace Table'],
-            currentChambers: 6,
             eliminated: new Set(),
-            roundNumber: 1
+            roundNumber: 1,
+            gameOver: false
         };
 
         // Avatar configuration
@@ -835,12 +936,23 @@
             document.getElementById('backToGame')?.addEventListener('click', () => prevPage(5));
             document.getElementById('resetGameBtn')?.addEventListener('click', resetGame);
             document.getElementById('resetScoreboardBtn')?.addEventListener('click', resetScoreboard);
-            document.getElementById('spinBtn')?.addEventListener('click', spin);
+            document.getElementById('spinBtn')?.addEventListener('click', spinForFirstPlayer);
             document.getElementById('shootBtn')?.addEventListener('click', shoot);
 
             // Initialize game state
             updateGameState();
             updateProbability();
+
+            // Update spin button listeners
+            const spinFirstPlayerBtn = document.getElementById('spinBtn');
+            if (spinFirstPlayerBtn) {
+                spinFirstPlayerBtn.onclick = spinForFirstPlayer;
+            }
+
+            const spinCylinderBtn = document.getElementById('spinCylinderBtn');
+            if (spinCylinderBtn) {
+                spinCylinderBtn.onclick = spinCylinder;
+            }
         });
 
         function getRandomAvatar() {
@@ -905,7 +1017,78 @@
             }
         }
 
-        async function spin() {
+        async function shoot() {
+            if (!gameState.currentPlayer) {
+                showMessage('Please select a player first', 'error');
+                return;
+            }
+
+            if (gameState.eliminated.has(gameState.currentPlayer)) {
+                showMessage('This player is eliminated!', 'error');
+                return;
+            }
+
+            if (gameState.gameOver) {
+                showMessage('Game is over! Start a new round.', 'error');
+                return;
+            }
+
+            // Initialize player shots if not exists
+            if (!gameState.playerShots[gameState.currentPlayer]) {
+                gameState.playerShots[gameState.currentPlayer] = 0;
+            }
+
+            // Check if player has used all their shots
+            if (gameState.playerShots[gameState.currentPlayer] >= gameState.currentChambers) {
+                showMessage('You have used all your shots! Next player.', 'error');
+                return;
+            }
+
+            // Check if current cylinder position matches bullet position
+            const hit = gameState.cylinderPosition === gameState.bulletPosition;
+            
+            // Increment shots for current player and rotate cylinder
+            gameState.playerShots[gameState.currentPlayer]++;
+            gameState.cylinderPosition = (gameState.cylinderPosition + 1) % gameState.currentChambers;
+
+            if (hit) {
+                // Player is hit
+                gameState.eliminated.add(gameState.currentPlayer);
+                showMessage(`BANG! ${gameState.currentPlayer} is eliminated!`, 'error');
+                
+                // Check if game is over
+                const remainingPlayers = gameState.players.filter(p => !gameState.eliminated.has(p));
+                if (remainingPlayers.length === 1) {
+                    const winner = remainingPlayers[0];
+                    gameState.scores[winner] = (gameState.scores[winner] || 0) + 1;
+                    gameState.gameOver = true;
+                    showMessage(`Game Over! ${winner} wins!`, 'success');
+                    localStorage.setItem('gameScores', JSON.stringify(gameState.scores));
+                    return;
+                }
+            } else {
+                // Click - no hit
+                showMessage(`Click! ${gameState.currentPlayer} survives!`, 'success');
+            }
+
+            // Move to next player if current player has used all shots or was eliminated
+            if (gameState.playerShots[gameState.currentPlayer] >= gameState.currentChambers || 
+                gameState.eliminated.has(gameState.currentPlayer)) {
+                const currentIndex = gameState.players.indexOf(gameState.currentPlayer);
+                let nextIndex = (currentIndex + 1) % gameState.players.length;
+                
+                // Find next non-eliminated player
+                while (gameState.eliminated.has(gameState.players[nextIndex])) {
+                    nextIndex = (nextIndex + 1) % gameState.players.length;
+                }
+                gameState.currentPlayer = gameState.players[nextIndex];
+            }
+
+            updateGameState();
+            updateRoundStats();
+        }
+
+        async function spinForFirstPlayer() {
             const playerList = document.getElementById('orderPlayerList');
             const spinButton = document.getElementById('spinBtn');
             const firstPlayerDisplay = document.getElementById('firstPlayerDisplay');
@@ -948,46 +1131,18 @@
             }
         }
 
-        async function shoot() {
+        function spinCylinder() {
             if (!gameState.currentPlayer) {
                 showMessage('Please select a player first', 'error');
                 return;
             }
 
-            if (gameState.eliminated.has(gameState.currentPlayer)) {
-                showMessage('This player is eliminated!', 'error');
-                return;
-            }
-
-            const hit = Math.random() < (1 / gameState.currentChambers);
-            gameState.bullets--;
-
-            if (hit) {
-                gameState.eliminated.add(gameState.currentPlayer);
-                showMessage(`BANG! ${gameState.currentPlayer} is eliminated!`, 'error');
-            } else {
-                showMessage(`Click! ${gameState.currentPlayer} survives!`, 'success');
-            }
-
-            // Move to next player
-            const activePlayers = gameState.players.filter(p => !gameState.eliminated.has(p));
-            if (activePlayers.length <= 1) {
-                if (activePlayers.length === 1) {
-                    const winner = activePlayers[0];
-                    gameState.scores[winner] = (gameState.scores[winner] || 0) + 1;
-                    showMessage(`Game Over! ${winner} wins!`, 'success');
-                } else {
-                    showMessage('Game Over! No players remaining.', 'error');
-                }
-            } else {
-                const currentIndex = gameState.players.indexOf(gameState.currentPlayer);
-                let nextIndex = (currentIndex + 1) % gameState.players.length;
-                while (gameState.eliminated.has(gameState.players[nextIndex])) {
-                    nextIndex = (nextIndex + 1) % gameState.players.length;
-                }
-                gameState.currentPlayer = gameState.players[nextIndex];
-            }
-
+            // Reset shots for current player and randomize bullet position
+            gameState.playerShots[gameState.currentPlayer] = 0;
+            gameState.bulletPosition = Math.floor(Math.random() * gameState.currentChambers);
+            gameState.cylinderPosition = 0;
+            
+            showMessage('Cylinder spun and reloaded!', 'success');
             updateGameState();
         }
 
@@ -996,9 +1151,12 @@
             gameState.currentPage = 1;
             gameState.selectedTable = null;
             gameState.currentPlayer = null;
-            gameState.bullets = gameState.currentChambers;
+            gameState.bulletPosition = Math.floor(Math.random() * gameState.currentChambers);
+            gameState.cylinderPosition = 0;
+            gameState.playerShots = {};
             gameState.eliminated = new Set();
             gameState.roundNumber++;
+            gameState.gameOver = false;
             gameState.players = [];
 
             // Reset UI elements
@@ -1034,7 +1192,7 @@
                 <h3>Round ${gameState.roundNumber} Stats</h3>
                 <div class="round-summary">
                     <p>Current Round Statistics</p>
-                    <p>Bullets Used: ${gameState.currentChambers - gameState.bullets}</p>
+                    <p>Bullets Used: ${gameState.currentChambers - gameState.playerShots[gameState.currentPlayer]}</p>
                     <p>Players Eliminated: ${gameState.eliminated.size}</p>
                 </div>
             `;
@@ -1102,15 +1260,41 @@
             const bulletDisplay = document.getElementById('bulletDisplay');
             if (bulletDisplay) {
                 bulletDisplay.innerHTML = '';
+                
+                // Add gun icon
+                const gunIcon = document.createElement('i');
+                gunIcon.className = 'fas fa-gun';
+                gunIcon.style.marginRight = '15px';
+                bulletDisplay.appendChild(gunIcon);
+
+                // Add bullet indicators
                 for (let i = 0; i < gameState.currentChambers; i++) {
                     const bullet = document.createElement('i');
-                    bullet.className = 'fas fa-circle bullet';
-                    if (i < gameState.bullets) {
-                        bullet.classList.add('remaining');
+                    bullet.className = 'fas bullet';
+                    
+                    const currentPlayerShots = gameState.playerShots[gameState.currentPlayer] || 0;
+                    
+                    if (i < currentPlayerShots) {
+                        // Used chambers for current player
+                        bullet.classList.add('fa-circle-dot', 'used');
+                    } else if (i === gameState.cylinderPosition) {
+                        // Current chamber
+                        bullet.classList.add('fa-circle', 'current-chamber');
                     } else {
-                        bullet.classList.add('used');
+                        // Unused chambers
+                        bullet.classList.add('fa-circle', 'remaining');
                     }
+                    
                     bulletDisplay.appendChild(bullet);
+                }
+
+                // Add shots counter for current player
+                if (gameState.currentPlayer) {
+                    const shotsInfo = document.createElement('span');
+                    shotsInfo.className = 'shots-info';
+                    const playerShots = gameState.playerShots[gameState.currentPlayer] || 0;
+                    shotsInfo.textContent = `${playerShots}/${gameState.currentChambers} shots fired`;
+                    bulletDisplay.appendChild(shotsInfo);
                 }
             }
 
@@ -1125,28 +1309,33 @@
                     const avatar = playerAvatars[player];
                     const isEliminated = gameState.eliminated.has(player);
                     const isCurrent = player === gameState.currentPlayer;
+                    const playerShots = gameState.playerShots[player] || 0;
                     
                     const playerCard = document.createElement('div');
                     playerCard.className = `player-card ${isCurrent ? 'current' : ''} ${isEliminated ? 'eliminated' : ''}`;
-                    playerCard.onclick = () => selectPlayer(player);
+                    if (!isEliminated && !gameState.gameOver) {
+                        playerCard.onclick = () => selectPlayer(player);
+                    }
                     
                     playerCard.innerHTML = `
                         <div class="avatar" style="background: ${avatar.gradient}">
                             ${avatar.emoji}
                         </div>
                         <p>${player}</p>
+                        ${isEliminated ? '<span class="eliminated-text">ELIMINATED</span>' : ''}
+                        <div class="player-shots">Shots: ${playerShots}/${gameState.currentChambers}</div>
                     `;
                     
                     gamePlayerList.appendChild(playerCard);
                 });
             }
 
-            // Update result area
+            // Update eliminated players display
             const resultArea = document.getElementById('resultArea');
             if (resultArea) {
-                if (gameState.eliminated.size > 0) {
-                    const eliminatedPlayers = Array.from(gameState.eliminated).join(', ');
-                    resultArea.innerHTML = `<p>Eliminated: ${eliminatedPlayers}</p>`;
+                const eliminatedPlayers = Array.from(gameState.eliminated);
+                if (eliminatedPlayers.length > 0) {
+                    resultArea.innerHTML = `<p>Eliminated: ${eliminatedPlayers.join(', ')}</p>`;
                 } else {
                     resultArea.innerHTML = '';
                 }
@@ -1155,7 +1344,11 @@
             // Update shoot button state
             const shootBtn = document.getElementById('shootBtn');
             if (shootBtn) {
-                shootBtn.disabled = !gameState.currentPlayer || gameState.eliminated.has(gameState.currentPlayer);
+                const currentPlayerShots = gameState.playerShots[gameState.currentPlayer] || 0;
+                shootBtn.disabled = !gameState.currentPlayer || 
+                                  gameState.eliminated.has(gameState.currentPlayer) ||
+                                  currentPlayerShots >= gameState.currentChambers ||
+                                  gameState.gameOver;
             }
         }
 
