@@ -462,7 +462,7 @@
             </div>
             <div class="table-selection">
                 <p>Current Table: <span id="currentTable">Not selected</span></p>
-                <button onclick="selectRandomTable()">Select Random Table</button>
+                <button id="selectTableBtn">Select Random Table</button>
             </div>
             <div class="navigation">
                 <button onclick="nextPage(1)">Next: Player Setup</button>
@@ -542,12 +542,12 @@
 
     <script>
         // Add base URL configuration
-        const BASE_URL = '{{ base_url }}';
+        const BASE_URL = '/liarsbars_at_home';
         
         // Register Service Worker
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
+                navigator.serviceWorker.register(BASE_URL + '/sw.js')
                     .then(registration => {
                         console.log('ServiceWorker registration successful');
                     })
@@ -632,13 +632,22 @@
         }
 
         async function selectRandomTable() {
-            const response = await fetch(BASE_URL + '/select_table', {
-                method: 'POST'
-            });
-            const data = await response.json();
-            selectedTable = data.table;
-            document.getElementById('currentTable').textContent = selectedTable;
-            showMessage(`Selected ${selectedTable}`, 'success');
+            try {
+                const response = await fetch(BASE_URL + '/select_table', {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                if (data.table) {
+                    selectedTable = data.table;
+                    document.getElementById('currentTable').textContent = selectedTable;
+                    showMessage(`Selected ${selectedTable}`, 'success');
+                } else {
+                    showMessage('Failed to select table', 'error');
+                }
+            } catch (error) {
+                console.error('Error selecting table:', error);
+                showMessage('Error selecting table. Please try again.', 'error');
+            }
         }
 
         function showMessage(text, type) {
@@ -1022,6 +1031,84 @@
                 addPlayer();
             }
         });
+
+        // Event Listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            // Set up select table button
+            const selectTableBtn = document.getElementById('selectTableBtn');
+            if (selectTableBtn) {
+                selectTableBtn.addEventListener('click', selectRandomTable);
+            }
+            
+            // Load saved players from localStorage
+            const savedPlayers = JSON.parse(localStorage.getItem('previousPlayers') || '[]');
+            const lastPlayedGrid = document.getElementById('lastPlayedGrid');
+            
+            savedPlayers.forEach(player => {
+                const avatar = playerAvatars[player] || getRandomAvatar();
+                playerAvatars[player] = avatar;
+                
+                const card = document.createElement('div');
+                card.className = 'last-played-card';
+                card.onclick = () => {
+                    document.getElementById('playerInput').value = player;
+                    addPlayer();
+                };
+                card.innerHTML = `
+                    <div class="avatar" style="background: ${avatar.gradient}">
+                        ${avatar.emoji}
+                    </div>
+                    <p>${player}</p>
+                `;
+                lastPlayedGrid.appendChild(card);
+            });
+            
+            // Add event listeners
+            document.getElementById('playerInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    addPlayer();
+                }
+            });
+            
+            document.getElementById('addPlayerBtn').addEventListener('click', addPlayer);
+            document.getElementById('spinBtn').addEventListener('click', spin);
+            document.getElementById('resetBtn').addEventListener('click', resetGame);
+            
+            // Initialize game state display
+            updateGameState();
+        });
+
+        function resetGame() {
+            gameState.bulletsUsed = 0;
+            gameState.bulletsLeft = 6;
+            gameState.roundNumber++;
+            gameState.selectedTable = '';
+            gameState.currentPlayer = null;
+            
+            document.getElementById('currentTable').textContent = '-';
+            document.getElementById('firstPlayerDisplay').textContent = '-';
+            
+            // Save current players to localStorage
+            const currentPlayers = new Set([
+                ...JSON.parse(localStorage.getItem('previousPlayers') || '[]'),
+                ...gameState.players
+            ]);
+            localStorage.setItem('previousPlayers', JSON.stringify([...currentPlayers]));
+            
+            updateGameState();
+            showMessage('Game reset for next round!', 'success');
+        }
+
+        function showMessage(text, type) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.textContent = text;
+            messageDiv.className = `message ${type}`;
+            messageDiv.classList.add('show');
+            
+            setTimeout(() => {
+                messageDiv.classList.remove('show');
+            }, 3000);
+        }
     </script>
 </body>
 </html> 
