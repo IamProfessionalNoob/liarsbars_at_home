@@ -23,13 +23,13 @@ jobs:
           
       - name: Build static files
         run: |
-          mkdir -p docs
-          cp -r templates static docs/
-          cp app.py docs/
-          cp game.py docs/
+          mkdir -p build
+          cp -r templates/* build/
+          cp -r static build/
+          mv build/index.html build/index.html
           
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./docs 
+          publish_dir: ./build 
