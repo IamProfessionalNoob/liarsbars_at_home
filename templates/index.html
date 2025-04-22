@@ -763,6 +763,10 @@
             margin-top: 5px;
             color: #bdc3c7;
         }
+
+        .message.info {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+        }
     </style>
 </head>
 <body>
@@ -1041,16 +1045,16 @@
             // Check if player has used all their shots
             if (gameState.playerShots[gameState.currentPlayer] >= gameState.currentChambers) {
                 showMessage('You have used all your shots! Next player.', 'error');
+                moveToNextPlayer();
                 return;
             }
 
             // Check if current cylinder position matches bullet position
             const hit = gameState.cylinderPosition === gameState.bulletPosition;
             
-            // Increment shots for current player and rotate cylinder
+            // Increment shots for current player
             gameState.playerShots[gameState.currentPlayer]++;
-            gameState.cylinderPosition = (gameState.cylinderPosition + 1) % gameState.currentChambers;
-
+            
             if (hit) {
                 // Player is hit
                 gameState.eliminated.add(gameState.currentPlayer);
@@ -1064,28 +1068,56 @@
                     gameState.gameOver = true;
                     showMessage(`Game Over! ${winner} wins!`, 'success');
                     localStorage.setItem('gameScores', JSON.stringify(gameState.scores));
+                    updateGameState();
+                    updateRoundStats();
                     return;
                 }
+                moveToNextPlayer();
             } else {
                 // Click - no hit
                 showMessage(`Click! ${gameState.currentPlayer} survives!`, 'success');
+                
+                // Check if player has used all shots
+                if (gameState.playerShots[gameState.currentPlayer] >= gameState.currentChambers) {
+                    showMessage(`${gameState.currentPlayer} has used all shots!`, 'info');
+                    moveToNextPlayer();
+                }
             }
 
-            // Move to next player if current player has used all shots or was eliminated
-            if (gameState.playerShots[gameState.currentPlayer] >= gameState.currentChambers || 
-                gameState.eliminated.has(gameState.currentPlayer)) {
-                const currentIndex = gameState.players.indexOf(gameState.currentPlayer);
-                let nextIndex = (currentIndex + 1) % gameState.players.length;
-                
-                // Find next non-eliminated player
-                while (gameState.eliminated.has(gameState.players[nextIndex])) {
-                    nextIndex = (nextIndex + 1) % gameState.players.length;
-                }
-                gameState.currentPlayer = gameState.players[nextIndex];
-            }
+            // Rotate cylinder after shot
+            gameState.cylinderPosition = (gameState.cylinderPosition + 1) % gameState.currentChambers;
 
             updateGameState();
             updateRoundStats();
+        }
+
+        function moveToNextPlayer() {
+            const currentIndex = gameState.players.indexOf(gameState.currentPlayer);
+            let nextIndex = (currentIndex + 1) % gameState.players.length;
+            
+            // Find next non-eliminated player
+            let loopCount = 0;
+            while (gameState.eliminated.has(gameState.players[nextIndex]) && loopCount < gameState.players.length) {
+                nextIndex = (nextIndex + 1) % gameState.players.length;
+                loopCount++;
+            }
+
+            // If we've looped through all players and they're all eliminated except one
+            if (loopCount >= gameState.players.length) {
+                const remainingPlayers = gameState.players.filter(p => !gameState.eliminated.has(p));
+                if (remainingPlayers.length === 1) {
+                    const winner = remainingPlayers[0];
+                    gameState.scores[winner] = (gameState.scores[winner] || 0) + 1;
+                    gameState.gameOver = true;
+                    showMessage(`Game Over! ${winner} wins!`, 'success');
+                    localStorage.setItem('gameScores', JSON.stringify(gameState.scores));
+                    updateGameState();
+                    return;
+                }
+            }
+
+            gameState.currentPlayer = gameState.players[nextIndex];
+            updateGameState();
         }
 
         async function spinForFirstPlayer() {
