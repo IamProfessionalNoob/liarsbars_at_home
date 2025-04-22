@@ -604,7 +604,7 @@
             </div>
             <div class="player-list" id="gamePlayerList"></div>
             <div class="result-area" id="resultArea"></div>
-            <button id="shootBtn" class="shoot-button">Shoot!</button>
+            <button onclick="shoot()" id="shootBtn" class="shoot-button">Shoot!</button>
             <div class="navigation">
                 <button id="backToPlayerOrder">Back: Player Order</button>
                 <button id="nextToScoreboard">Next: Scoreboard</button>
@@ -618,8 +618,8 @@
             <div class="scoreboard" id="scores"></div>
             <div class="navigation">
                 <button id="backToGame">Back: Game</button>
-                <button id="resetGameBtn">Reset Game</button>
-                <button id="resetScoreboardBtn">Reset Scoreboard</button>
+                <button onclick="resetGame()" id="resetGameBtn">Reset Game</button>
+                <button onclick="resetScoreboard()" id="resetScoreboardBtn">Reset Scoreboard</button>
             </div>
         </div>
 
@@ -633,16 +633,13 @@
         
         // Game state
         const gameState = {
-            selectedTable: '',
-            players: [],
-            currentChambers: 6,
             currentPage: 1,
+            selectedTable: null,
+            players: [],
             currentPlayer: null,
-            bulletsUsed: 0,
-            roundNumber: 1,
+            bullets: 6,
             scores: {},
-            eliminated: new Set(),
-            tables: ['King Table', 'Queen Table', 'Ace Table']
+            previousPlayers: []
         };
 
         // Avatar configuration
@@ -728,194 +725,178 @@
         }
 
         async function addPlayer() {
-            const nameInput = document.getElementById('playerName');
-            const name = nameInput.value.trim();
+            const playerInput = document.getElementById('playerName');
+            const playerName = playerInput.value.trim();
             
-            if (name) {
-                if (gameState.players.includes(name)) {
-                    showMessage('Player already exists', 'error');
-                    return;
-                }
-                
-                gameState.players.push(name);
-                showMessage(`Added player ${name}`, 'success');
-                nameInput.value = '';
-                updatePlayerList();
-                
-                // Save to localStorage
-                const previousPlayers = new Set(JSON.parse(localStorage.getItem('previousPlayers') || '[]'));
-                previousPlayers.add(name);
-                localStorage.setItem('previousPlayers', JSON.stringify([...previousPlayers]));
-            } else {
+            if (!playerName) {
                 showMessage('Please enter a player name', 'error');
+                return;
             }
+
+            fetch(BASE_URL + '/add_player', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ name: playerName })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    playerInput.value = '';
+                    updateGameState();
+                    showMessage(`Added player: ${playerName}`, 'success');
+                } else {
+                    showMessage(data.message || 'Error adding player', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showMessage('Error adding player', 'error');
+            });
         }
 
         async function spin() {
-            console.log('Spin function called'); // Debug log
-            const playerList = document.getElementById('orderPlayerList');
-            const spinButton = document.getElementById('spinBtn');
-            const firstPlayerDisplay = document.getElementById('firstPlayerDisplay');
-            
-            if (!gameState.players || gameState.players.length < 2) {
-                showMessage('Need at least 2 players to start', 'error');
+            if (!gameState.currentPlayer) {
+                showMessage('Please select a player first', 'error');
                 return;
             }
-            
-            firstPlayerDisplay.textContent = '';
-            spinButton.disabled = true;
-            playerList.classList.add('spinning');
-            
-            try {
-                // Simulate spinning animation
-                for (let i = 0; i < 20; i++) {
-                    const tempIndex = Math.floor(Math.random() * gameState.players.length);
-                    const tempPlayer = gameState.players[tempIndex];
-                    firstPlayerDisplay.textContent = `Spinning... ${tempPlayer}`;
-                    await new Promise(resolve => setTimeout(resolve, 100));
+
+            fetch(BASE_URL + '/spin', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
                 }
-                
-                await new Promise(resolve => setTimeout(resolve, 500));
-                
-                const randomIndex = Math.floor(Math.random() * gameState.players.length);
-                const selectedPlayer = gameState.players[randomIndex];
-                gameState.currentPlayer = selectedPlayer;
-                
-                firstPlayerDisplay.textContent = `First Player: ${selectedPlayer}`;
-                showMessage(`${selectedPlayer} goes first!`, 'success');
-                
-                // Update player list to highlight selected player
-                updateOrderPlayerList();
-            } catch (error) {
-                console.error('Error in spin:', error); // Debug log
-                showMessage('Error selecting first player', 'error');
-            } finally {
-                playerList.classList.remove('spinning');
-                spinButton.disabled = false;
-            }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateGameState();
+                    showMessage('Cylinder spun!', 'success');
+                } else {
+                    showMessage(data.message || 'Error spinning', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showMessage('Error spinning', 'error');
+            });
         }
 
         async function shoot() {
-            const currentPlayer = gameState.currentPlayer;
-            if (!currentPlayer) {
-                showMessage('No current player selected', 'error');
+            if (!gameState.currentPlayer) {
+                showMessage('Please select a player first', 'error');
                 return;
             }
-            
-            const hit = Math.random() < (1 / gameState.currentChambers);
-            gameState.bulletsUsed++;
-            
-            const resultArea = document.getElementById('resultArea');
-            if (hit) {
-                gameState.eliminated.add(currentPlayer);
-                resultArea.innerHTML = `<p style="color: red;">BANG! ${currentPlayer} is eliminated!</p>`;
-                showMessage(`BANG! ${currentPlayer} is eliminated!`, 'error');
-            } else {
-                resultArea.innerHTML = `<p style="color: green;">Click! ${currentPlayer} survives!</p>`;
-                showMessage(`Click! ${currentPlayer} survives!`, 'success');
-            }
-            
-            // Move to next player
-            const activePlayers = gameState.players.filter(p => !gameState.eliminated.has(p));
-            if (activePlayers.length <= 1) {
-                // Game over
-                if (activePlayers.length === 1) {
-                    const winner = activePlayers[0];
-                    resultArea.innerHTML = `<p style="color: green;">Game Over! ${winner} wins!</p>`;
-                    showMessage(`Game Over! ${winner} wins!`, 'success');
-                    gameState.scores[winner] = (gameState.scores[winner] || 0) + 1;
+
+            fetch(BASE_URL + '/shoot', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateGameState();
+                    const result = data.hit ? 'Hit!' : 'Click!';
+                    showMessage(`${result} ${data.message}`, data.hit ? 'error' : 'success');
                 } else {
-                    resultArea.innerHTML = `<p>Game Over! No players remaining.</p>`;
-                    showMessage('Game Over! No players remaining.', 'error');
+                    showMessage(data.message || 'Error shooting', 'error');
                 }
-                document.getElementById('shootBtn').disabled = true;
-            } else {
-                const currentIndex = gameState.players.indexOf(currentPlayer);
-                let nextIndex = (currentIndex + 1) % gameState.players.length;
-                while (gameState.eliminated.has(gameState.players[nextIndex])) {
-                    nextIndex = (nextIndex + 1) % gameState.players.length;
-                }
-                gameState.currentPlayer = gameState.players[nextIndex];
-            }
-            
-            updateGameState();
-            updateScoreboard();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showMessage('Error shooting', 'error');
+            });
         }
 
         function resetGame() {
-            gameState.selectedTable = '';
-            gameState.currentPlayer = null;
-            gameState.bulletsUsed = 0;
-            gameState.roundNumber++;
-            gameState.eliminated.clear();
-            
-            document.getElementById('currentTable').textContent = 'Not selected';
-            document.getElementById('firstPlayerDisplay').textContent = '';
-            document.getElementById('shootBtn').disabled = false;
-            document.getElementById('resultArea').innerHTML = '';
-            
-            updatePlayerList();
-            showPage(1);
-            updateGameState();
-            showMessage('Game reset for next round!', 'success');
+            fetch(BASE_URL + '/reset', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateGameState();
+                    showMessage('Game reset!', 'success');
+                } else {
+                    showMessage(data.message || 'Error resetting game', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showMessage('Error resetting game', 'error');
+            });
+        }
+
+        function resetScoreboard() {
+            console.log('Reset scoreboard called'); // Debug log
+            gameState.scores = {};
+            localStorage.removeItem('gameScores');
+            updateScoreboard();
+            showMessage('Scoreboard has been reset', 'success');
         }
 
         function updateGameState() {
-            document.getElementById('currentPlayer').textContent = gameState.currentPlayer || '-';
-            document.getElementById('roundNumber').textContent = gameState.roundNumber;
-            
-            updateBulletDisplay(gameState.bulletsUsed, gameState.currentChambers);
-            updateGamePlayerList();
-            updateRoundStats();
-        }
-
-        // Update page navigation
-        function showPage(pageNum) {
-            document.querySelectorAll('.page').forEach(page => {
-                page.classList.remove('active');
+            fetch(BASE_URL + '/game_state')
+            .then(response => response.json())
+            .then(data => {
+                gameState.players = data.players;
+                gameState.currentPlayer = data.current_player;
+                gameState.bullets = data.bullets;
+                gameState.scores = data.scores;
+                updateDisplay();
+            })
+            .catch(error => {
+                console.error('Error updating game state:', error);
+                showMessage('Error updating game state', 'error');
             });
-            document.getElementById('page' + pageNum).classList.add('active');
-            currentPage = pageNum;
-            
-            if (pageNum === 2) {
-                loadPreviousPlayers();
-            }
-            if (pageNum === 3) {
-                updateOrderPlayerList();
-            }
         }
 
-        function nextPage(currentPageNum) {
-            if (currentPageNum === 1 && !gameState.selectedTable) {
-                showMessage('Please select a table first', 'error');
-                return;
+        function updateDisplay() {
+            // Update player list
+            const playerList = document.getElementById('playerList');
+            playerList.innerHTML = '';
+            gameState.players.forEach(player => {
+                const playerDiv = document.createElement('div');
+                playerDiv.className = 'player-item';
+                playerDiv.textContent = player;
+                if (player === gameState.currentPlayer) {
+                    playerDiv.classList.add('current');
+                }
+                playerList.appendChild(playerDiv);
+            });
+
+            // Update bullet display
+            updateBulletDisplay();
+
+            // Update current player display
+            const currentPlayerDisplay = document.getElementById('currentPlayerDisplay');
+            if (currentPlayerDisplay) {
+                currentPlayerDisplay.textContent = gameState.currentPlayer || '';
             }
-            if (currentPageNum === 2 && gameState.players.length < 2) {
-                showMessage('Please add at least 2 players', 'error');
-                return;
-            }
-            if (currentPageNum === 3 && !document.getElementById('firstPlayerDisplay').textContent) {
-                showMessage('Please spin to select first player', 'error');
-                return;
-            }
-            showPage(currentPageNum + 1);
-            updateGameState();
+
+            // Update scoreboard
+            updateScoreboard();
         }
 
-        function prevPage(currentPageNum) {
-            showPage(currentPageNum - 1);
-        }
-
-        // Update message display
-        function showMessage(text, type) {
-            const messageDiv = document.getElementById('message');
-            messageDiv.textContent = text;
-            messageDiv.className = `message ${type}`;
-            messageDiv.classList.add('show');
-            
-            setTimeout(() => {
-                messageDiv.classList.remove('show');
-            }, 3000);
+        function updateBulletDisplay() {
+            const bulletDisplay = document.getElementById('bulletDisplay');
+            if (bulletDisplay) {
+                bulletDisplay.innerHTML = '';
+                for (let i = 0; i < 6; i++) {
+                    const bullet = document.createElement('span');
+                    bullet.className = 'bullet';
+                    if (i >= gameState.bullets) {
+                        bullet.classList.add('used');
+                    }
+                    bulletDisplay.appendChild(bullet);
+                }
+            }
         }
 
         function updatePlayerList() {
@@ -1016,13 +997,26 @@
         }
 
         function selectPlayer(playerName) {
-            if (gameState.eliminated.has(playerName)) {
-                showMessage('This player is eliminated', 'error');
-                return;
-            }
-            gameState.currentPlayer = playerName;
-            showMessage(`Selected ${playerName}`, 'success');
-            updateGameState();
+            fetch(BASE_URL + '/select_player', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ name: playerName })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateGameState();
+                    showMessage(`Selected player: ${playerName}`, 'success');
+                } else {
+                    showMessage(data.message || 'Error selecting player', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showMessage('Error selecting player', 'error');
+            });
         }
 
         // Update the updateOrderPlayerList function
@@ -1058,6 +1052,119 @@
                 
                 orderPlayerList.appendChild(card);
             });
+        }
+
+        // Load scores from localStorage on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedScores = localStorage.getItem('gameScores');
+            if (savedScores) {
+                gameState.scores = JSON.parse(savedScores);
+                updateScoreboard();
+            }
+        });
+
+        // Add styles for game page
+        const gameStyles = document.createElement('style');
+        gameStyles.textContent = `
+            .game-info {
+                background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+                padding: 20px;
+                border-radius: var(--border-radius);
+                color: var(--text-light);
+                margin-bottom: 20px;
+                text-align: center;
+            }
+
+            .bullet-display {
+                background: linear-gradient(135deg, var(--primary-color), #34495e);
+                padding: 20px;
+                border-radius: var(--border-radius);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 10px;
+                margin: 20px 0;
+            }
+
+            .bullet.used {
+                color: #95a5a6;
+                opacity: 0.5;
+            }
+
+            .bullet.remaining {
+                color: #f1c40f;
+                text-shadow: 0 0 10px rgba(241, 196, 15, 0.5);
+            }
+
+            .result-area {
+                text-align: center;
+                margin: 20px 0;
+                font-size: 1.2em;
+                font-weight: bold;
+            }
+
+            .shoot-button {
+                background: linear-gradient(135deg, var(--accent-color), #c0392b);
+                font-size: 1.2em;
+                padding: 15px 40px;
+                margin: 20px auto;
+                display: block;
+            }
+
+            .shoot-button:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+            }
+        `;
+        document.head.appendChild(gameStyles);
+
+        // Update page navigation
+        function showPage(pageNum) {
+            document.querySelectorAll('.page').forEach(page => {
+                page.classList.remove('active');
+            });
+            document.getElementById('page' + pageNum).classList.add('active');
+            gameState.currentPage = pageNum;
+            
+            if (pageNum === 2) {
+                loadPreviousPlayers();
+            }
+            if (pageNum === 3) {
+                updateOrderPlayerList();
+            }
+        }
+
+        function nextPage(currentPageNum) {
+            if (currentPageNum === 1 && !gameState.selectedTable) {
+                showMessage('Please select a table first', 'error');
+                return;
+            }
+            if (currentPageNum === 2 && gameState.players.length < 2) {
+                showMessage('Please add at least 2 players', 'error');
+                return;
+            }
+            if (currentPageNum === 3 && !document.getElementById('firstPlayerDisplay').textContent) {
+                showMessage('Please spin to select first player', 'error');
+                return;
+            }
+            showPage(currentPageNum + 1);
+            updateGameState();
+        }
+
+        function prevPage(currentPageNum) {
+            showPage(currentPageNum - 1);
+        }
+
+        // Update message display
+        function showMessage(text, type) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.textContent = text;
+            messageDiv.className = `message ${type}`;
+            messageDiv.classList.add('show');
+            
+            setTimeout(() => {
+                messageDiv.classList.remove('show');
+            }, 3000);
         }
     </script>
 </body>
