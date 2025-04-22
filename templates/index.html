@@ -535,6 +535,88 @@
             transform: scale(1.1);
             box-shadow: 0 8px 25px rgba(0,0,0,0.2);
         }
+
+        .round-stats {
+            background: linear-gradient(135deg, var(--primary-color), #34495e);
+            padding: 20px;
+            border-radius: var(--border-radius);
+            color: var(--text-light);
+            margin: 20px 0;
+        }
+
+        .round-summary {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: var(--border-radius);
+            margin: 15px 0;
+        }
+
+        .player-stats {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: var(--border-radius);
+            margin: 10px 0;
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            align-items: center;
+            gap: 15px;
+            transition: all 0.3s ease;
+        }
+
+        .player-stats.eliminated {
+            background: rgba(231, 76, 60, 0.2);
+        }
+
+        .player-stats.survived {
+            background: rgba(46, 204, 113, 0.2);
+        }
+
+        .player-stats.winner {
+            background: linear-gradient(135deg, #f1c40f, #f39c12);
+            transform: scale(1.05);
+        }
+
+        .player-name {
+            font-weight: bold;
+        }
+
+        .score {
+            font-weight: bold;
+            color: #f1c40f;
+        }
+
+        .status {
+            font-weight: bold;
+            padding: 5px 10px;
+            border-radius: 15px;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .eliminated .status {
+            color: #e74c3c;
+        }
+
+        .survived .status {
+            color: #2ecc71;
+        }
+
+        .no-scores {
+            text-align: center;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: var(--border-radius);
+            margin: 10px 0;
+        }
+
+        #scores {
+            margin-top: 30px;
+        }
+
+        #scores h3 {
+            margin-bottom: 20px;
+            text-align: center;
+            color: var(--text-light);
+        }
     </style>
 </head>
 <body>
@@ -640,9 +722,10 @@
             bullets: 6,
             scores: {},
             previousPlayers: [],
-            tables: ['King Table', 'Queen Table', 'Ace Table'],  // Updated table names
+            tables: ['King Table', 'Queen Table', 'Ace Table'],
             currentChambers: 6,
-            eliminated: new Set()  // Add eliminated set for tracking eliminated players
+            eliminated: new Set(),
+            roundNumber: 1
         };
 
         // Avatar configuration
@@ -775,30 +858,46 @@
         }
 
         async function spin() {
-            if (!gameState.currentPlayer) {
-                showMessage('Please select a player first', 'error');
+            const playerList = document.getElementById('orderPlayerList');
+            const spinButton = document.getElementById('spinBtn');
+            const firstPlayerDisplay = document.getElementById('firstPlayerDisplay');
+            
+            if (!gameState.players || gameState.players.length < 2) {
+                showMessage('Need at least 2 players to start', 'error');
                 return;
             }
 
-            fetch(BASE_URL + '/spin', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
+            firstPlayerDisplay.textContent = '';
+            spinButton.disabled = true;
+            playerList.classList.add('spinning');
+            
+            try {
+                // Simulate spinning animation
+                for (let i = 0; i < 20; i++) {
+                    const tempIndex = Math.floor(Math.random() * gameState.players.length);
+                    const tempPlayer = gameState.players[tempIndex];
+                    firstPlayerDisplay.textContent = `Spinning... ${tempPlayer}`;
+                    await new Promise(resolve => setTimeout(resolve, 100));
                 }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    updateGameState();
-                    showMessage('Cylinder spun!', 'success');
-                } else {
-                    showMessage(data.message || 'Error spinning', 'error');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showMessage('Error spinning', 'error');
-            });
+                
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                const randomIndex = Math.floor(Math.random() * gameState.players.length);
+                const selectedPlayer = gameState.players[randomIndex];
+                gameState.currentPlayer = selectedPlayer;
+                
+                firstPlayerDisplay.textContent = `First Player: ${selectedPlayer}`;
+                showMessage(`${selectedPlayer} goes first!`, 'success');
+                
+                // Update player list to highlight selected player
+                updateOrderPlayerList();
+            } catch (error) {
+                console.error('Error in spin:', error);
+                showMessage('Error selecting first player', 'error');
+            } finally {
+                playerList.classList.remove('spinning');
+                spinButton.disabled = false;
+            }
         }
 
         async function shoot() {
@@ -807,113 +906,190 @@
                 return;
             }
 
-            fetch(BASE_URL + '/shoot', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    updateGameState();
-                    const result = data.hit ? 'Hit!' : 'Click!';
-                    showMessage(`${result} ${data.message}`, data.hit ? 'error' : 'success');
+            if (gameState.eliminated.has(gameState.currentPlayer)) {
+                showMessage('This player is eliminated!', 'error');
+                return;
+            }
+
+            const hit = Math.random() < (1 / gameState.currentChambers);
+            gameState.bullets--;
+
+            if (hit) {
+                gameState.eliminated.add(gameState.currentPlayer);
+                showMessage(`BANG! ${gameState.currentPlayer} is eliminated!`, 'error');
+            } else {
+                showMessage(`Click! ${gameState.currentPlayer} survives!`, 'success');
+            }
+
+            // Move to next player
+            const activePlayers = gameState.players.filter(p => !gameState.eliminated.has(p));
+            if (activePlayers.length <= 1) {
+                if (activePlayers.length === 1) {
+                    const winner = activePlayers[0];
+                    gameState.scores[winner] = (gameState.scores[winner] || 0) + 1;
+                    showMessage(`Game Over! ${winner} wins!`, 'success');
                 } else {
-                    showMessage(data.message || 'Error shooting', 'error');
+                    showMessage('Game Over! No players remaining.', 'error');
                 }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showMessage('Error shooting', 'error');
-            });
+            } else {
+                const currentIndex = gameState.players.indexOf(gameState.currentPlayer);
+                let nextIndex = (currentIndex + 1) % gameState.players.length;
+                while (gameState.eliminated.has(gameState.players[nextIndex])) {
+                    nextIndex = (nextIndex + 1) % gameState.players.length;
+                }
+                gameState.currentPlayer = gameState.players[nextIndex];
+            }
+
+            updateGameState();
         }
 
         function resetGame() {
-            fetch(BASE_URL + '/reset', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    updateGameState();
-                    showMessage('Game reset!', 'success');
-                } else {
-                    showMessage(data.message || 'Error resetting game', 'error');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showMessage('Error resetting game', 'error');
-            });
+            gameState.currentPlayer = null;
+            gameState.bullets = gameState.currentChambers;
+            gameState.eliminated = new Set();
+            gameState.roundNumber++;
+            updateGameState();
+            updateRoundStats();
+            showMessage('Game reset for next round!', 'success');
         }
 
         function resetScoreboard() {
-            console.log('Reset scoreboard called'); // Debug log
             gameState.scores = {};
             localStorage.removeItem('gameScores');
             updateScoreboard();
             showMessage('Scoreboard has been reset', 'success');
         }
 
-        function updateGameState() {
-            fetch(BASE_URL + '/game_state')
-            .then(response => response.json())
-            .then(data => {
-                gameState.players = data.players;
-                gameState.currentPlayer = data.current_player;
-                gameState.bullets = data.bullets;
-                gameState.scores = data.scores;
-                updateDisplay();
-            })
-            .catch(error => {
-                console.error('Error updating game state:', error);
-                showMessage('Error updating game state', 'error');
+        function updateRoundStats() {
+            const roundStatsDiv = document.getElementById('roundStats');
+            if (!roundStatsDiv) return;
+            
+            let html = `
+                <h3>Round ${gameState.roundNumber} Stats</h3>
+                <div class="round-summary">
+                    <p>Current Round Statistics</p>
+                    <p>Bullets Used: ${gameState.currentChambers - gameState.bullets}</p>
+                    <p>Players Eliminated: ${gameState.eliminated.size}</p>
+                </div>
+            `;
+            
+            gameState.players.forEach(player => {
+                const isEliminated = gameState.eliminated.has(player);
+                const avatar = playerAvatars[player] || getRandomAvatar();
+                html += `
+                    <div class="player-stats ${isEliminated ? 'eliminated' : 'survived'}">
+                        <div class="avatar" style="background: ${avatar.gradient}">
+                            ${avatar.emoji}
+                        </div>
+                        <span>${player}</span>
+                        <span class="status">${isEliminated ? 'Eliminated' : 'Alive'}</span>
+                    </div>
+                `;
+            });
+            
+            roundStatsDiv.innerHTML = html;
+        }
+
+        function updateScoreboard() {
+            const scoresDiv = document.getElementById('scores');
+            if (!scoresDiv) return;
+            
+            scoresDiv.innerHTML = '<h3>Overall Scores</h3>';
+            
+            const sortedScores = Object.entries(gameState.scores)
+                .sort(([,a], [,b]) => b - a);
+            
+            if (sortedScores.length === 0) {
+                scoresDiv.innerHTML += '<p class="no-scores">No scores yet</p>';
+                return;
+            }
+            
+            sortedScores.forEach(([player, score], index) => {
+                const avatar = playerAvatars[player] || getRandomAvatar();
+                const rank = index === 0 ? '🏆' : index === 1 ? '🥈' : index === 2 ? '🥉' : '';
+                scoresDiv.innerHTML += `
+                    <div class="player-stats ${index === 0 ? 'winner' : ''}">
+                        <div class="avatar" style="background: ${avatar.gradient}">
+                            ${avatar.emoji}
+                        </div>
+                        <span class="player-name">${rank} ${player}</span>
+                        <span class="score">Wins: ${score}</span>
+                    </div>
+                `;
             });
         }
 
-        function updateDisplay() {
-            // Update player list
-            const playerList = document.getElementById('playerList');
-            playerList.innerHTML = '';
-            gameState.players.forEach(player => {
-                const playerDiv = document.createElement('div');
-                playerDiv.className = 'player-item';
-                playerDiv.textContent = player;
-                if (player === gameState.currentPlayer) {
-                    playerDiv.classList.add('current');
-                }
-                playerList.appendChild(playerDiv);
-            });
-
-            // Update bullet display
-            updateBulletDisplay();
-
+        function updateGameState() {
             // Update current player display
-            const currentPlayerDisplay = document.getElementById('currentPlayerDisplay');
+            const currentPlayerDisplay = document.getElementById('currentPlayer');
             if (currentPlayerDisplay) {
-                currentPlayerDisplay.textContent = gameState.currentPlayer || '';
+                currentPlayerDisplay.textContent = gameState.currentPlayer || '-';
             }
 
-            // Update scoreboard
-            updateScoreboard();
-        }
+            // Update round number
+            const roundDisplay = document.getElementById('roundNumber');
+            if (roundDisplay) {
+                roundDisplay.textContent = gameState.roundNumber;
+            }
 
-        function updateBulletDisplay() {
+            // Update bullet display
             const bulletDisplay = document.getElementById('bulletDisplay');
             if (bulletDisplay) {
                 bulletDisplay.innerHTML = '';
-                for (let i = 0; i < 6; i++) {
-                    const bullet = document.createElement('span');
-                    bullet.className = 'bullet';
-                    if (i >= gameState.bullets) {
+                for (let i = 0; i < gameState.currentChambers; i++) {
+                    const bullet = document.createElement('i');
+                    bullet.className = 'fas fa-circle bullet';
+                    if (i < gameState.bullets) {
+                        bullet.classList.add('remaining');
+                    } else {
                         bullet.classList.add('used');
                     }
                     bulletDisplay.appendChild(bullet);
                 }
+            }
+
+            // Update game player list
+            const gamePlayerList = document.getElementById('gamePlayerList');
+            if (gamePlayerList) {
+                gamePlayerList.innerHTML = '';
+                gameState.players.forEach(player => {
+                    if (!playerAvatars[player]) {
+                        playerAvatars[player] = getRandomAvatar();
+                    }
+                    const avatar = playerAvatars[player];
+                    const isEliminated = gameState.eliminated.has(player);
+                    const isCurrent = player === gameState.currentPlayer;
+                    
+                    const playerCard = document.createElement('div');
+                    playerCard.className = `player-card ${isCurrent ? 'current' : ''} ${isEliminated ? 'eliminated' : ''}`;
+                    playerCard.onclick = () => selectPlayer(player);
+                    
+                    playerCard.innerHTML = `
+                        <div class="avatar" style="background: ${avatar.gradient}">
+                            ${avatar.emoji}
+                        </div>
+                        <p>${player}</p>
+                    `;
+                    
+                    gamePlayerList.appendChild(playerCard);
+                });
+            }
+
+            // Update result area
+            const resultArea = document.getElementById('resultArea');
+            if (resultArea) {
+                if (gameState.eliminated.size > 0) {
+                    const eliminatedPlayers = Array.from(gameState.eliminated).join(', ');
+                    resultArea.innerHTML = `<p>Eliminated: ${eliminatedPlayers}</p>`;
+                } else {
+                    resultArea.innerHTML = '';
+                }
+            }
+
+            // Update shoot button state
+            const shootBtn = document.getElementById('shootBtn');
+            if (shootBtn) {
+                shootBtn.disabled = !gameState.currentPlayer || gameState.eliminated.has(gameState.currentPlayer);
             }
         }
 
@@ -940,109 +1116,7 @@
             });
         }
 
-        function updateGamePlayerList() {
-            const gamePlayerListDiv = document.getElementById('gamePlayerList');
-            gamePlayerListDiv.innerHTML = '';
-            gameState.players.forEach(player => {
-                const isCurrent = player === gameState.currentPlayer;
-                const isEliminated = gameState.eliminated.has(player);
-                if (!playerAvatars[player]) {
-                    playerAvatars[player] = getRandomAvatar();
-                }
-                const avatar = playerAvatars[player];
-                gamePlayerListDiv.innerHTML += `
-                    <div class="player-card ${isCurrent ? 'current' : ''} ${isEliminated ? 'eliminated' : ''}" onclick="selectPlayer('${player}')">
-                        <div class="avatar" style="background: ${avatar.gradient}">
-                            ${avatar.emoji}
-                        </div>
-                        <p>${player}</p>
-                    </div>
-                `;
-            });
-        }
-
-        function updateRoundStats() {
-            const roundStatsDiv = document.getElementById('roundStats');
-            if (!roundStatsDiv) return;
-            
-            let html = `
-                <h3>Round ${gameState.roundNumber} Stats</h3>
-                <div class="round-summary">
-                    <p>Current Round Statistics</p>
-                </div>
-            `;
-            
-            gameState.players.forEach(player => {
-                const isEliminated = gameState.eliminated.has(player);
-                const avatar = playerAvatars[player] || getRandomAvatar();
-                html += `
-                    <div class="player-stats ${isEliminated ? 'eliminated' : 'survived'}">
-                        <div class="avatar" style="background: ${avatar.gradient}">
-                            ${avatar.emoji}
-                        </div>
-                        <span>${player}</span>
-                        <span>Status: ${isEliminated ? 'Eliminated' : 'Alive'}</span>
-                    </div>
-                `;
-            });
-            
-            roundStatsDiv.innerHTML = html;
-        }
-
-        function updateScoreboard() {
-            const scoresDiv = document.getElementById('scores');
-            if (!scoresDiv) return;
-            
-            scoresDiv.innerHTML = '<h3>Overall Scores</h3>';
-            
-            const sortedScores = Object.entries(gameState.scores)
-                .sort(([,a], [,b]) => b - a);
-            
-            if (sortedScores.length === 0) {
-                scoresDiv.innerHTML += '<p>No scores yet</p>';
-                return;
-            }
-            
-            sortedScores.forEach(([player, score]) => {
-                const avatar = playerAvatars[player] || getRandomAvatar();
-                scoresDiv.innerHTML += `
-                    <div class="player-stats">
-                        <div class="avatar" style="background: ${avatar.gradient}">
-                            ${avatar.emoji}
-                        </div>
-                        <span>${player}</span>
-                        <span>Wins: ${score}</span>
-                    </div>
-                `;
-            });
-        }
-
-        function selectPlayer(playerName) {
-            fetch(BASE_URL + '/select_player', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ name: playerName })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    updateGameState();
-                    showMessage(`Selected player: ${playerName}`, 'success');
-                } else {
-                    showMessage(data.message || 'Error selecting player', 'error');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showMessage('Error selecting player', 'error');
-            });
-        }
-
-        // Update the updateOrderPlayerList function
         function updateOrderPlayerList() {
-            console.log('Updating order player list'); // Debug log
             const orderPlayerList = document.getElementById('orderPlayerList');
             if (!orderPlayerList) return;
             
@@ -1075,69 +1149,28 @@
             });
         }
 
-        // Load scores from localStorage on page load
-        document.addEventListener('DOMContentLoaded', () => {
-            const savedScores = localStorage.getItem('gameScores');
-            if (savedScores) {
-                gameState.scores = JSON.parse(savedScores);
-                updateScoreboard();
-            }
-        });
-
-        // Add styles for game page
-        const gameStyles = document.createElement('style');
-        gameStyles.textContent = `
-            .game-info {
-                background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-                padding: 20px;
-                border-radius: var(--border-radius);
-                color: var(--text-light);
-                margin-bottom: 20px;
-                text-align: center;
-            }
-
-            .bullet-display {
-                background: linear-gradient(135deg, var(--primary-color), #34495e);
-                padding: 20px;
-                border-radius: var(--border-radius);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                gap: 10px;
-                margin: 20px 0;
-            }
-
-            .bullet.used {
-                color: #95a5a6;
-                opacity: 0.5;
-            }
-
-            .bullet.remaining {
-                color: #f1c40f;
-                text-shadow: 0 0 10px rgba(241, 196, 15, 0.5);
-            }
-
-            .result-area {
-                text-align: center;
-                margin: 20px 0;
-                font-size: 1.2em;
-                font-weight: bold;
-            }
-
-            .shoot-button {
-                background: linear-gradient(135deg, var(--accent-color), #c0392b);
-                font-size: 1.2em;
-                padding: 15px 40px;
-                margin: 20px auto;
-                display: block;
-            }
-
-            .shoot-button:disabled {
-                opacity: 0.5;
-                cursor: not-allowed;
-            }
-        `;
-        document.head.appendChild(gameStyles);
+        function selectPlayer(playerName) {
+            fetch(BASE_URL + '/select_player', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ name: playerName })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateGameState();
+                    showMessage(`Selected player: ${playerName}`, 'success');
+                } else {
+                    showMessage(data.message || 'Error selecting player', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showMessage('Error selecting player', 'error');
+            });
+        }
 
         // Update page navigation
         function showPage(pageNum) {
