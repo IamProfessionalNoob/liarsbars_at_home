@@ -7,8 +7,8 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <base href="/liarsbars_at_home/">
-    <link rel="manifest" href="static/manifest.json">
-    <link rel="apple-touch-icon" href="static/icons/icon-192.png">
+    <link rel="manifest" href="/liarsbars_at_home/static/manifest.json">
+    <link rel="apple-touch-icon" href="/liarsbars_at_home/static/icons/icon-192.png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         :root {
@@ -541,14 +541,14 @@
     </div>
 
     <script>
-        // Add base URL configuration
+        // Base URL configuration
         const isGitHubPages = window.location.hostname.includes('github.io');
         const BASE_URL = isGitHubPages ? '/liarsbars_at_home' : '';
         
-        // Register Service Worker
+        // Service Worker Registration with correct path
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register(BASE_URL + '/sw.js')
+                navigator.serviceWorker.register('/liarsbars_at_home/sw.js')
                     .then(registration => {
                         console.log('ServiceWorker registration successful');
                     })
@@ -634,7 +634,7 @@
 
         async function selectRandomTable() {
             try {
-                const response = await fetch(BASE_URL + '/select_table', {
+                const response = await fetch(`${BASE_URL}/select_table`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -730,7 +730,7 @@
             
             if (name) {
                 try {
-                    const response = await fetch(BASE_URL + '/add_player', {
+                    const response = await fetch(`${BASE_URL}/add_player`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -758,7 +758,7 @@
         }
 
         async function selectPlayer(playerName) {
-            const response = await fetch(BASE_URL + '/select_player', {
+            const response = await fetch(`${BASE_URL}/select_player`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -777,7 +777,7 @@
 
         async function shoot() {
             const currentPlayer = document.getElementById('currentPlayer').textContent;
-            const response = await fetch(BASE_URL + '/shoot', {
+            const response = await fetch(`${BASE_URL}/shoot`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -821,7 +821,7 @@
         }
 
         async function resetGame() {
-            const response = await fetch(BASE_URL + '/reset', {
+            const response = await fetch(`${BASE_URL}/reset`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -846,7 +846,7 @@
         }
 
         async function updateScoreboard() {
-            const response = await fetch(BASE_URL + '/scores');
+            const response = await fetch(`${BASE_URL}/scores`);
             const scores = await response.json();
             
             const scoresDiv = document.getElementById('scores');
@@ -858,7 +858,7 @@
         }
 
         async function updateGameState() {
-            fetch(BASE_URL + '/game_state')
+            fetch(`${BASE_URL}/game_state`)
                 .then(response => response.json())
                 .then(state => {
                     document.getElementById('currentPlayer').textContent = state.current_player || '-';
@@ -926,7 +926,7 @@
         }
 
         async function resetScoreboard() {
-            const response = await fetch(BASE_URL + '/reset_scoreboard', {
+            const response = await fetch(`${BASE_URL}/reset_scoreboard`, {
                 method: 'POST'
             });
             const data = await response.json();
@@ -936,7 +936,7 @@
 
         async function loadPreviousPlayers() {
             try {
-                const response = await fetch(BASE_URL + '/previous_players');
+                const response = await fetch(`${BASE_URL}/previous_players`);
                 const previousPlayers = await response.json();
                 const previousPlayersList = document.getElementById('previousPlayersList');
                 previousPlayersList.innerHTML = '';
@@ -977,7 +977,7 @@
             playerList.classList.add('spinning');
             
             try {
-                const response = await fetch(BASE_URL + '/spin', {
+                const response = await fetch(`${BASE_URL}/spin`, {
                     method: 'POST'
                 });
                 const data = await response.json();
