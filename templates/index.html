@@ -582,7 +582,7 @@
             <h2>Randomize First Player</h2>
             <div class="spinner-container">
                 <div id="firstPlayerDisplay" class="first-player-display"></div>
-                <button id="spinBtn" class="spin-button">Spin to Choose First Player!</button>
+                <button onclick="spin()" id="spinBtn" class="spin-button">Spin to Choose First Player!</button>
             </div>
             <div class="player-list" id="orderPlayerList"></div>
             <div class="navigation">
@@ -752,11 +752,12 @@
         }
 
         async function spin() {
+            console.log('Spin function called'); // Debug log
             const playerList = document.getElementById('orderPlayerList');
             const spinButton = document.getElementById('spinBtn');
             const firstPlayerDisplay = document.getElementById('firstPlayerDisplay');
             
-            if (gameState.players.length < 2) {
+            if (!gameState.players || gameState.players.length < 2) {
                 showMessage('Need at least 2 players to start', 'error');
                 return;
             }
@@ -767,7 +768,14 @@
             
             try {
                 // Simulate spinning animation
-                await new Promise(resolve => setTimeout(resolve, 2000));
+                for (let i = 0; i < 20; i++) {
+                    const tempIndex = Math.floor(Math.random() * gameState.players.length);
+                    const tempPlayer = gameState.players[tempIndex];
+                    firstPlayerDisplay.textContent = `Spinning... ${tempPlayer}`;
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+                
+                await new Promise(resolve => setTimeout(resolve, 500));
                 
                 const randomIndex = Math.floor(Math.random() * gameState.players.length);
                 const selectedPlayer = gameState.players[randomIndex];
@@ -779,6 +787,7 @@
                 // Update player list to highlight selected player
                 updateOrderPlayerList();
             } catch (error) {
+                console.error('Error in spin:', error); // Debug log
                 showMessage('Error selecting first player', 'error');
             } finally {
                 playerList.classList.remove('spinning');
@@ -1016,12 +1025,19 @@
             updateGameState();
         }
 
-        // Add function to update order player list
+        // Update the updateOrderPlayerList function
         function updateOrderPlayerList() {
+            console.log('Updating order player list'); // Debug log
             const orderPlayerList = document.getElementById('orderPlayerList');
             if (!orderPlayerList) return;
             
             orderPlayerList.innerHTML = '';
+            
+            if (!gameState.players || gameState.players.length === 0) {
+                orderPlayerList.innerHTML = '<p>No players added yet</p>';
+                return;
+            }
+            
             gameState.players.forEach((player, index) => {
                 const isSelected = player === gameState.currentPlayer;
                 if (!playerAvatars[player]) {
