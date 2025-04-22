@@ -640,8 +640,9 @@
             bullets: 6,
             scores: {},
             previousPlayers: [],
-            tables: ['Table 1', 'Table 2', 'Table 3', 'Table 4', 'Table 5'],  // Add available tables
-            currentChambers: 6  // Add current chambers count
+            tables: ['King Table', 'Queen Table', 'Ace Table'],  // Updated table names
+            currentChambers: 6,
+            eliminated: new Set()  // Add eliminated set for tracking eliminated players
         };
 
         // Avatar configuration
@@ -757,27 +758,20 @@
                 return;
             }
 
-            fetch(BASE_URL + '/add_player', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ name: playerName })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    playerInput.value = '';
-                    updateGameState();
-                    showMessage(`Added player: ${playerName}`, 'success');
-                } else {
-                    showMessage(data.message || 'Error adding player', 'error');
-                }
-            })
-            .catch(error => {
+            if (gameState.players.includes(playerName)) {
+                showMessage('Player already exists', 'error');
+                return;
+            }
+
+            try {
+                gameState.players.push(playerName);
+                playerInput.value = '';
+                updatePlayerList();
+                showMessage(`Added player: ${playerName}`, 'success');
+            } catch (error) {
                 console.error('Error:', error);
                 showMessage('Error adding player', 'error');
-            });
+            }
         }
 
         async function spin() {
@@ -925,21 +919,24 @@
 
         function updatePlayerList() {
             const playerListDiv = document.getElementById('playerList');
+            if (!playerListDiv) return;
+            
             playerListDiv.innerHTML = '';
             gameState.players.forEach(player => {
                 if (!playerAvatars[player]) {
                     playerAvatars[player] = getRandomAvatar();
                 }
                 const avatar = playerAvatars[player];
-                const isEliminated = gameState.eliminated.has(player);
-                playerListDiv.innerHTML += `
-                    <div class="player-card ${isEliminated ? 'eliminated' : ''}">
-                        <div class="avatar" style="background: ${avatar.gradient}">
-                            ${avatar.emoji}
-                        </div>
-                        <p>${player}</p>
+                
+                const playerCard = document.createElement('div');
+                playerCard.className = 'player-card';
+                playerCard.innerHTML = `
+                    <div class="avatar" style="background: ${avatar.gradient}">
+                        ${avatar.emoji}
                     </div>
+                    <p>${player}</p>
                 `;
+                playerListDiv.appendChild(playerCard);
             });
         }
 
