@@ -454,6 +454,22 @@
         .player-stats.survived {
             background: rgba(46, 204, 113, 0.2);
         }
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            max-width: 500px;
+            margin: 0 auto 20px;
+        }
+
+        .add-player-btn {
+            white-space: nowrap;
+            min-width: 120px;
+        }
+
+        #playerName {
+            flex: 1;
+        }
     </style>
 </head>
 <body>
@@ -484,8 +500,10 @@
         <div id="page2" class="page">
             <h2>Player Setup</h2>
             <div class="player-setup">
-                <input type="text" id="playerName" placeholder="Enter player name">
-                <button id="addPlayerBtn">Add Player</button>
+                <div class="input-group">
+                    <input type="text" id="playerName" placeholder="Enter player name">
+                    <button id="addPlayerBtn" class="add-player-btn">Add Player</button>
+                </div>
             </div>
             <div class="player-list" id="playerList"></div>
             <div class="navigation">
@@ -559,8 +577,21 @@
             roundNumber: 1,
             scores: {},
             eliminated: new Set(),
-            tables: ['Table 1', 'Table 2', 'Table 3', 'Table 4', 'VIP Table']
+            tables: ['King Table', 'Queen Table', 'Ace Table']
         };
+
+        // Avatar configuration
+        const avatarsList = [
+            { emoji: '🤠', gradient: 'linear-gradient(45deg, #ff6b6b, #feca57)' },
+            { emoji: '🦹', gradient: 'linear-gradient(45deg, #a55eea, #45aaf2)' },
+            { emoji: '🧙', gradient: 'linear-gradient(45deg, #26de81, #45aaf2)' },
+            { emoji: '🦸', gradient: 'linear-gradient(45deg, #fd79a8, #a55eea)' },
+            { emoji: '🥷', gradient: 'linear-gradient(45deg, #4b4b4b, #2c3e50)' },
+            { emoji: '👨‍🎤', gradient: 'linear-gradient(45deg, #e056fd, #686de0)' },
+            { emoji: '🧛', gradient: 'linear-gradient(45deg, #eb4d4b, #b71540)' },
+            { emoji: '🦊', gradient: 'linear-gradient(45deg, #fa8231, #f7b731)' }
+        ];
+        const playerAvatars = {};
 
         // Add event listeners when DOM is loaded
         document.addEventListener('DOMContentLoaded', () => {
@@ -573,13 +604,15 @@
             });
 
             // Set up table selection button
-            document.getElementById('selectTableBtn').addEventListener('click', selectRandomTable);
+            const selectTableBtn = document.getElementById('selectTableBtn');
+            if (selectTableBtn) {
+                selectTableBtn.addEventListener('click', selectRandomTable);
+            }
 
-            // Set up navigation buttons
-            document.getElementById('nextToPlayerSetup').addEventListener('click', () => nextPage(1));
-
-            // Set up player name input
+            // Set up player name input and button
             const playerNameInput = document.getElementById('playerName');
+            const addPlayerBtn = document.getElementById('addPlayerBtn');
+            
             if (playerNameInput) {
                 playerNameInput.addEventListener('keypress', (e) => {
                     if (e.key === 'Enter') {
@@ -587,47 +620,33 @@
                     }
                 });
             }
-
-            // Load previous players
-            loadPreviousPlayers();
             
+            if (addPlayerBtn) {
+                addPlayerBtn.addEventListener('click', addPlayer);
+            }
+
+            // Set up navigation buttons
+            document.getElementById('nextToPlayerSetup')?.addEventListener('click', () => nextPage(1));
+            document.getElementById('backToTableSelection')?.addEventListener('click', () => prevPage(2));
+            document.getElementById('nextToPlayerOrder')?.addEventListener('click', () => nextPage(2));
+            document.getElementById('backToPlayerSetup')?.addEventListener('click', () => prevPage(3));
+            document.getElementById('nextToGame')?.addEventListener('click', () => nextPage(3));
+            document.getElementById('backToPlayerOrder')?.addEventListener('click', () => prevPage(4));
+            document.getElementById('nextToScoreboard')?.addEventListener('click', () => nextPage(4));
+            document.getElementById('backToGame')?.addEventListener('click', () => prevPage(5));
+            document.getElementById('resetGameBtn')?.addEventListener('click', resetGame);
+            document.getElementById('resetScoreboardBtn')?.addEventListener('click', resetScoreboard);
+            document.getElementById('spinBtn')?.addEventListener('click', spin);
+            document.getElementById('shootBtn')?.addEventListener('click', shoot);
+
             // Initialize game state
             updateGameState();
             updateProbability();
-
-            // Player Setup page
-            document.getElementById('addPlayerBtn').addEventListener('click', addPlayer);
-            document.getElementById('backToTableSelection').addEventListener('click', () => prevPage(2));
-            document.getElementById('nextToPlayerOrder').addEventListener('click', () => nextPage(2));
-
-            // Player Order page
-            document.getElementById('spinBtn').addEventListener('click', spin);
-            document.getElementById('backToPlayerSetup').addEventListener('click', () => prevPage(3));
-            document.getElementById('nextToGame').addEventListener('click', () => nextPage(3));
-
-            // Game page
-            document.getElementById('shootBtn').addEventListener('click', shoot);
-            document.getElementById('backToPlayerOrder').addEventListener('click', () => prevPage(4));
-            document.getElementById('nextToScoreboard').addEventListener('click', () => nextPage(4));
-
-            // Scoreboard page
-            document.getElementById('backToGame').addEventListener('click', () => prevPage(5));
-            document.getElementById('resetGameBtn').addEventListener('click', resetGame);
-            document.getElementById('resetScoreboardBtn').addEventListener('click', resetScoreboard);
         });
 
-        function selectChambers(chambers) {
-            currentChambers = chambers;
-            document.querySelectorAll('.chamber-btn').forEach(btn => {
-                btn.classList.remove('selected');
-            });
-            document.querySelector(`[data-chambers="${chambers}"]`).classList.add('selected');
-            updateProbability();
-        }
-
-        function updateProbability() {
-            const probability = (1 / currentChambers * 100).toFixed(1);
-            document.getElementById('probability').textContent = probability + '%';
+        function getRandomAvatar() {
+            const randomIndex = Math.floor(Math.random() * avatarsList.length);
+            return avatarsList[randomIndex];
         }
 
         async function selectRandomTable() {
@@ -657,7 +676,6 @@
                 showMessage(`Added player ${name}`, 'success');
                 nameInput.value = '';
                 updatePlayerList();
-                updateLastPlayedGrid();
                 
                 // Save to localStorage
                 const previousPlayers = new Set(JSON.parse(localStorage.getItem('previousPlayers') || '[]'));
