@@ -639,7 +639,9 @@
             currentPlayer: null,
             bullets: 6,
             scores: {},
-            previousPlayers: []
+            previousPlayers: [],
+            tables: ['Table 1', 'Table 2', 'Table 3', 'Table 4', 'Table 5'],  // Add available tables
+            currentChambers: 6  // Add current chambers count
         };
 
         // Avatar configuration
@@ -664,6 +666,9 @@
                     selectChambers(chambers);
                 });
             });
+
+            // Initialize with 6 chambers
+            selectChambers(6);
 
             // Set up table selection button
             const selectTableBtn = document.getElementById('selectTableBtn');
@@ -711,13 +716,32 @@
             return avatarsList[randomIndex];
         }
 
+        function selectChambers(chambers) {
+            document.querySelectorAll('.chamber-btn').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            document.querySelector(`[data-chambers="${chambers}"]`).classList.add('selected');
+            gameState.currentChambers = chambers;
+            updateProbability();
+        }
+
+        function updateProbability() {
+            const probability = ((1 / gameState.currentChambers) * 100).toFixed(1);
+            document.getElementById('probability').textContent = `${probability}%`;
+        }
+
         async function selectRandomTable() {
+            if (!gameState.tables || gameState.tables.length === 0) {
+                showMessage('No tables available', 'error');
+                return;
+            }
+
             try {
                 const randomIndex = Math.floor(Math.random() * gameState.tables.length);
-                const table = gameState.tables[randomIndex];
-                gameState.selectedTable = table;
-                document.getElementById('currentTable').textContent = table;
-                showMessage(`Selected ${table}`, 'success');
+                const selectedTable = gameState.tables[randomIndex];
+                gameState.selectedTable = selectedTable;
+                document.getElementById('currentTable').textContent = selectedTable;
+                showMessage(`Selected ${selectedTable}`, 'success');
             } catch (error) {
                 console.error('Error selecting table:', error);
                 showMessage('Error selecting table. Please try again.', 'error');
