@@ -1,0 +1,1027 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Liar's Bar Revolver</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#2c3e50">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <base href="/liarsbars_at_home/">
+    <link rel="manifest" href="static/manifest.json">
+    <link rel="apple-touch-icon" href="static/icons/icon-192.png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --background-color: #f5f6fa;
+            --card-background: #ffffff;
+            --text-color: #2c3e50;
+            --text-light: #ffffff;
+            --shadow: 0 4px 15px rgba(0,0,0,0.1);
+            --border-radius: 15px;
+            --spacing: 20px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            padding: 0;
+            margin: 0;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: var(--spacing);
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--primary-color);
+            font-size: 2.5rem;
+            margin-bottom: var(--spacing);
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+
+        h2 {
+            color: var(--secondary-color);
+            margin-bottom: var(--spacing);
+            font-size: 2rem;
+        }
+
+        .page {
+            display: none;
+            background-color: var(--card-background);
+            border-radius: var(--border-radius);
+            padding: var(--spacing);
+            box-shadow: var(--shadow);
+            margin-bottom: var(--spacing);
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        .chamber-selection {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            padding: var(--spacing);
+            border-radius: var(--border-radius);
+            color: var(--text-light);
+            margin-bottom: var(--spacing);
+        }
+
+        .chamber-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        button {
+            background: linear-gradient(135deg, #e74c3c, #e67e22);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+        }
+
+        button.selected {
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+        }
+
+        .shoot-button {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            font-size: 1.2em;
+            padding: 15px 40px;
+            margin: 20px auto;
+            display: block;
+        }
+
+        input {
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 25px;
+            font-size: 1rem;
+            width: 100%;
+            max-width: 300px;
+            transition: border-color 0.3s ease;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--secondary-color);
+        }
+
+        .player-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--spacing);
+            margin: var(--spacing) 0;
+        }
+
+        .player-card {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            padding: var(--spacing);
+            border-radius: var(--border-radius);
+            text-align: center;
+            color: var(--text-light);
+            box-shadow: var(--shadow);
+            transition: transform 0.3s ease;
+            cursor: pointer;
+        }
+
+        .player-card.current {
+            background: linear-gradient(135deg, var(--accent-color), #d35400);
+            transform: scale(1.05);
+        }
+
+        .avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            margin: 0 auto 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            border: 3px solid var(--text-light);
+            box-shadow: var(--shadow);
+            transition: transform 0.3s ease;
+        }
+
+        .bullet-display {
+            background: linear-gradient(135deg, var(--primary-color), #34495e);
+            padding: var(--spacing);
+            border-radius: var(--border-radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin: var(--spacing) 0;
+            flex-wrap: wrap;
+        }
+
+        .bullet {
+            font-size: 24px;
+            transition: all 0.3s ease;
+        }
+
+        .bullet.used {
+            color: #95a5a6;
+            opacity: 0.5;
+        }
+
+        .bullet.remaining {
+            color: #f1c40f;
+            text-shadow: 0 0 10px rgba(241, 196, 15, 0.5);
+        }
+
+        .game-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--spacing);
+            margin-bottom: var(--spacing);
+            text-align: center;
+        }
+
+        .round-stats {
+            background: linear-gradient(135deg, var(--primary-color), #34495e);
+            padding: var(--spacing);
+            border-radius: var(--border-radius);
+            color: var(--text-light);
+            margin: var(--spacing) 0;
+        }
+
+        .player-stats {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: var(--border-radius);
+            margin: 10px 0;
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .player-stats.eliminated {
+            background: rgba(231, 76, 60, 0.2);
+        }
+
+        .player-stats.survived {
+            background: rgba(46, 204, 113, 0.2);
+        }
+
+        .message {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 15px 30px;
+            border-radius: 25px;
+            color: white;
+            font-weight: bold;
+            box-shadow: var(--shadow);
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .message.success {
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+        }
+
+        .message.error {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+        }
+
+        .message.show {
+            opacity: 1;
+        }
+
+        .navigation {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: var(--spacing);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            h1 {
+                font-size: 2rem;
+            }
+
+            h2 {
+                font-size: 1.5rem;
+            }
+
+            .player-list {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+                gap: 10px;
+            }
+
+            .player-card {
+                padding: 15px;
+            }
+
+            .avatar {
+                width: 60px;
+                height: 60px;
+                font-size: 30px;
+            }
+
+            .bullet-display {
+                padding: 15px;
+            }
+
+            .bullet {
+                font-size: 20px;
+            }
+
+            .game-info {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+
+            .player-stats {
+                grid-template-columns: 1fr;
+                text-align: center;
+            }
+
+            .navigation {
+                flex-direction: column;
+            }
+
+            button {
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 1.8rem;
+            }
+
+            .player-list {
+                grid-template-columns: 1fr;
+            }
+
+            .chamber-selection {
+                padding: 15px;
+            }
+
+            .bullet-display {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .spinning {
+            animation: spin 1s linear infinite;
+        }
+        .spinner-wheel {
+            display: none;
+        }
+        .spinner-wheel.active {
+            display: block;
+        }
+        .spinner-inner {
+            transform: rotate(0deg);
+        }
+        .spinner-inner.spinning {
+            transform: rotate(1800deg); /* 5 full rotations */
+        }
+        .spin-button:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+        @keyframes runLeft {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
+        @keyframes runRight {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        .spinning .player-card {
+            position: relative;
+            overflow: hidden;
+        }
+        .spinning .player-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                transparent 0%, 
+                rgba(255, 255, 255, 0.2) 50%, 
+                transparent 100%);
+            animation: runLeft 1s linear infinite;
+        }
+        .spinning .player-card:nth-child(even)::before {
+            animation: runRight 1s linear infinite;
+        }
+        .spinning .avatar {
+            animation: bounce 0.5s ease infinite alternate;
+        }
+        @keyframes bounce {
+            from { transform: translateY(0); }
+            to { transform: translateY(-10px); }
+        }
+        @keyframes runBox {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        .spinning .player-card {
+            position: relative;
+            overflow: hidden;
+        }
+        .spinning .player-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 20px;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.4);
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+            animation: runBox 1s linear infinite;
+        }
+        .last-played-section {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            padding: var(--spacing);
+            border-radius: var(--border-radius);
+            margin: var(--spacing) 0;
+            color: var(--text-light);
+        }
+        .last-played-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .last-played-card {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .last-played-card:hover {
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Liar's Bar Revolver</h1>
+        
+        <!-- Page 1: Table Selection -->
+        <div id="page1" class="page active">
+            <h2>Table Selection</h2>
+            <div class="chamber-selection">
+                <h3>Revolver Chambers</h3>
+                <div class="chamber-buttons">
+                    <button id="chamber4" onclick="selectChambers(4)">4 Chambers</button>
+                    <button id="chamber6" onclick="selectChambers(6)" class="selected">6 Chambers</button>
+                </div>
+                <p>Probability of elimination: <span id="probability">16.7%</span></p>
+            </div>
+            <div class="table-selection">
+                <p>Current Table: <span id="currentTable">Not selected</span></p>
+                <button onclick="selectRandomTable()">Select Random Table</button>
+            </div>
+            <div class="navigation">
+                <button onclick="nextPage(1)">Next: Player Setup</button>
+            </div>
+        </div>
+
+        <!-- Page 2: Player Setup -->
+        <div id="page2" class="page">
+            <h2>Player Setup</h2>
+            <div class="last-played-section">
+                <h3>Last Played Players</h3>
+                <div class="last-played-grid" id="lastPlayedGrid"></div>
+            </div>
+            <div class="player-setup">
+                <input type="text" id="playerName" placeholder="Enter player name">
+                <button onclick="addPlayer()">Add Player</button>
+            </div>
+            <div class="previous-players" style="margin: 20px 0;">
+                <h3>Previous Players</h3>
+                <div id="previousPlayersList" class="player-list"></div>
+            </div>
+            <div class="player-list" id="playerList"></div>
+            <div class="navigation">
+                <button onclick="prevPage(2)">Back: Table Selection</button>
+                <button onclick="nextPage(2)">Next: Player Order</button>
+            </div>
+        </div>
+
+        <!-- Page 3: Player Order -->
+        <div id="page3" class="page">
+            <h2>Randomize First Player</h2>
+            <div class="spinner-container" style="text-align: center; margin: 30px 0;">
+                <div id="firstPlayerDisplay" style="font-size: 1.5em; margin-bottom: 20px; font-weight: bold; color: var(--secondary-color);"></div>
+                <button id="spinButton" class="spin-button" onclick="spin()" style="background: linear-gradient(135deg, var(--secondary-color), #2980b9); font-size: 1.2em; padding: 15px 30px;">Spin to Choose First Player!</button>
+            </div>
+            <div class="player-list" id="orderPlayerList"></div>
+            <div class="navigation">
+                <button onclick="prevPage(3)">Back: Player Setup</button>
+                <button onclick="nextPage(3)">Next: Game</button>
+            </div>
+        </div>
+
+        <!-- Page 4: Game -->
+        <div id="page4" class="page">
+            <h2>Game Area</h2>
+            <div class="game-info">
+                <p>Current Player: <span id="currentPlayer">-</span></p>
+                <p>Round: <span id="roundNumber">1</span></p>
+            </div>
+            <div class="bullet-display">
+                <i class="fas fa-gun revolver-icon"></i>
+                <div id="bulletDisplay"></div>
+            </div>
+            <div class="player-list" id="gamePlayerList"></div>
+            <div class="result-area" id="resultArea"></div>
+            <button onclick="shoot()" class="shoot-button">Shoot!</button>
+            <div class="navigation">
+                <button onclick="prevPage(4)">Back: Player Order</button>
+                <button onclick="nextPage(4)">Next: Scoreboard</button>
+            </div>
+        </div>
+
+        <!-- Page 5: Scoreboard -->
+        <div id="page5" class="page">
+            <h2>Scoreboard</h2>
+            <div class="round-stats" id="roundStats"></div>
+            <div class="scoreboard" id="scores"></div>
+            <div class="navigation">
+                <button onclick="prevPage(5)">Back: Game</button>
+                <button onclick="resetGame()">Reset Game</button>
+                <button onclick="resetScoreboard()">Reset Scoreboard</button>
+            </div>
+        </div>
+
+        <div id="message" class="message"></div>
+    </div>
+
+    <script>
+        // Add base URL configuration
+        const BASE_URL = '{{ base_url }}';
+        
+        // Register Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registration successful');
+                    })
+                    .catch(err => {
+                        console.log('ServiceWorker registration failed: ', err);
+                    });
+            });
+        }
+
+        // Add to Home Screen prompt
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            // Show your custom "Add to Home Screen" button or banner here
+        });
+
+        // Prevent pull-to-refresh
+        document.body.style.overscrollBehavior = 'none';
+
+        let selectedTable = '';
+        let players = [];
+        let currentChambers = 6;
+        let currentPage = 1;
+
+        const avatarsList = [
+            { emoji: '🤠', gradient: 'linear-gradient(45deg, #ff6b6b, #feca57)' },
+            { emoji: '🦹', gradient: 'linear-gradient(45deg, #a55eea, #45aaf2)' },
+            { emoji: '🧙', gradient: 'linear-gradient(45deg, #26de81, #45aaf2)' },
+            { emoji: '🦸', gradient: 'linear-gradient(45deg, #fd79a8, #a55eea)' },
+            { emoji: '🥷', gradient: 'linear-gradient(45deg, #4b4b4b, #2c3e50)' },
+            { emoji: '👨‍🎤', gradient: 'linear-gradient(45deg, #e056fd, #686de0)' },
+            { emoji: '🧛', gradient: 'linear-gradient(45deg, #eb4d4b, #b71540)' },
+            { emoji: '🦊', gradient: 'linear-gradient(45deg, #fa8231, #f7b731)' }
+        ];
+        const playerAvatars = {};
+
+        function showPage(pageNum) {
+            document.querySelectorAll('.page').forEach(page => {
+                page.classList.remove('active');
+            });
+            document.getElementById('page' + pageNum).classList.add('active');
+            currentPage = pageNum;
+            
+            if (pageNum === 2) {
+                loadPreviousPlayers();
+            }
+        }
+
+        function nextPage(currentPageNum) {
+            if (currentPageNum === 1 && !selectedTable) {
+                showMessage('Please select a table first', 'error');
+                return;
+            }
+            if (currentPageNum === 2 && players.length < 2) {
+                showMessage('Please add at least 2 players', 'error');
+                return;
+            }
+            if (currentPageNum === 3 && !document.getElementById('firstPlayerDisplay').textContent) {
+                showMessage('Please spin to select first player', 'error');
+                return;
+            }
+            showPage(currentPageNum + 1);
+            updateGameState();
+        }
+
+        function prevPage(currentPageNum) {
+            showPage(currentPageNum - 1);
+        }
+
+        function updateProbability() {
+            const probability = (1 / currentChambers * 100).toFixed(1);
+            document.getElementById('probability').textContent = probability + '%';
+        }
+
+        function selectChambers(chambers) {
+            currentChambers = chambers;
+            document.getElementById('chamber4').classList.remove('selected');
+            document.getElementById('chamber6').classList.remove('selected');
+            document.getElementById('chamber' + chambers).classList.add('selected');
+            updateProbability();
+        }
+
+        async function selectRandomTable() {
+            const response = await fetch(BASE_URL + '/select_table', {
+                method: 'POST'
+            });
+            const data = await response.json();
+            selectedTable = data.table;
+            document.getElementById('currentTable').textContent = selectedTable;
+            showMessage(`Selected ${selectedTable}`, 'success');
+        }
+
+        function showMessage(text, type) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.textContent = text;
+            messageDiv.className = `message ${type}`;
+            messageDiv.classList.add('show');
+            
+            setTimeout(() => {
+                messageDiv.classList.remove('show');
+            }, 3000);
+        }
+
+        function getRandomAvatar() {
+            const randomIndex = Math.floor(Math.random() * avatarsList.length);
+            return avatarsList[randomIndex];
+        }
+
+        function updatePlayerList() {
+            const playerListDiv = document.getElementById('playerList');
+            playerListDiv.innerHTML = '';
+            players.forEach(player => {
+                if (!playerAvatars[player]) {
+                    playerAvatars[player] = getRandomAvatar();
+                }
+                const avatar = playerAvatars[player];
+                playerListDiv.innerHTML += `
+                    <div class="player-card">
+                        <div class="avatar" style="background: ${avatar.gradient}">
+                            ${avatar.emoji}
+                        </div>
+                        <p>${player}</p>
+                    </div>
+                `;
+            });
+        }
+
+        function updateGamePlayerList() {
+            const gamePlayerListDiv = document.getElementById('gamePlayerList');
+            gamePlayerListDiv.innerHTML = '';
+            players.forEach(player => {
+                const isCurrent = player === document.getElementById('currentPlayer').textContent;
+                if (!playerAvatars[player]) {
+                    playerAvatars[player] = getRandomAvatar();
+                }
+                const avatar = playerAvatars[player];
+                gamePlayerListDiv.innerHTML += `
+                    <div class="player-card ${isCurrent ? 'current' : ''}" onclick="selectPlayer('${player}')">
+                        <div class="avatar" style="background: ${avatar.gradient}">
+                            ${avatar.emoji}
+                        </div>
+                        <p>${player}</p>
+                    </div>
+                `;
+            });
+        }
+
+        function updateBulletDisplay(used, total) {
+            const bulletDisplay = document.getElementById('bulletDisplay');
+            bulletDisplay.innerHTML = '';
+            
+            // Add used bullets
+            for (let i = 0; i < used; i++) {
+                bulletDisplay.innerHTML += `<i class="fas fa-circle bullet used"></i>`;
+            }
+            
+            // Add remaining bullets
+            for (let i = 0; i < total - used; i++) {
+                bulletDisplay.innerHTML += `<i class="fas fa-circle bullet remaining"></i>`;
+            }
+        }
+
+        async function addPlayer() {
+            const nameInput = document.getElementById('playerName');
+            const name = nameInput.value.trim();
+            
+            if (name) {
+                try {
+                    const response = await fetch(BASE_URL + '/add_player', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ name }),
+                    });
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        players.push(name);
+                        showMessage(data.message, 'success');
+                        nameInput.value = '';
+                        updatePlayerList();
+                        updateLastPlayedGrid();
+                    } else {
+                        showMessage(data.message, 'error');
+                    }
+                } catch (error) {
+                    console.error('Error adding player:', error);
+                    showMessage('Error adding player. Please try again.', 'error');
+                }
+            } else {
+                showMessage('Please enter a player name', 'error');
+            }
+        }
+
+        async function selectPlayer(playerName) {
+            const response = await fetch(BASE_URL + '/select_player', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ name: playerName }),
+            });
+            const data = await response.json();
+            
+            if (data.success) {
+                showMessage(data.message, 'success');
+                updateGameState();
+            } else {
+                showMessage(data.message, 'error');
+            }
+        }
+
+        async function shoot() {
+            const currentPlayer = document.getElementById('currentPlayer').textContent;
+            const response = await fetch(BASE_URL + '/shoot', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ player_name: currentPlayer }),
+            });
+            const result = await response.json();
+            
+            if (result.error) {
+                showMessage(result.error, 'error');
+                return;
+            }
+            
+            const resultArea = document.getElementById('resultArea');
+            if (result.game_over) {
+                if (result.winner) {
+                    resultArea.innerHTML = `<p style="color: green;">Game Over! ${result.winner} wins!</p>`;
+                    showMessage(`Game Over! ${result.winner} wins!`, 'success');
+                } else {
+                    resultArea.innerHTML = `<p>Game Over! No players remaining.</p>`;
+                    showMessage('Game Over! No players remaining.', 'error');
+                }
+                document.querySelector('button[onclick="shoot()"]').disabled = true;
+            } else {
+                if (result.hit) {
+                    resultArea.innerHTML = `<p style="color: red;">BANG! ${result.player} is eliminated!</p>`;
+                    showMessage(`BANG! ${result.player} is eliminated!`, 'error');
+                } else {
+                    resultArea.innerHTML = `<p style="color: green;">Click! ${result.player} survives!</p>`;
+                    showMessage(`Click! ${result.player} survives!`, 'success');
+                }
+            }
+            
+            document.getElementById('roundNumber').textContent = result.round_number;
+            
+            updateBulletDisplay(result.bullets_used, result.chambers);
+            
+            updateGamePlayerList();
+            updateScoreboard();
+            updateGameState();
+        }
+
+        async function resetGame() {
+            const response = await fetch(BASE_URL + '/reset', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ chambers: currentChambers }),
+            });
+            const data = await response.json();
+            showMessage(data.message, 'success');
+            
+            document.getElementById('roundStats').innerHTML = '';
+            
+            document.querySelector('button[onclick="shoot()"]').disabled = false;
+            
+            selectedTable = '';
+            players = [];
+            document.getElementById('currentTable').textContent = 'Not selected';
+            document.getElementById('firstPlayerDisplay').textContent = '';
+            updatePlayerList();
+            showPage(1);
+            
+            updateGameState();
+        }
+
+        async function updateScoreboard() {
+            const response = await fetch(BASE_URL + '/scores');
+            const scores = await response.json();
+            
+            const scoresDiv = document.getElementById('scores');
+            scoresDiv.innerHTML = '';
+            
+            for (const [player, score] of Object.entries(scores)) {
+                scoresDiv.innerHTML += `<p>${player}: ${score} wins</p>`;
+            }
+        }
+
+        async function updateGameState() {
+            fetch(BASE_URL + '/game_state')
+                .then(response => response.json())
+                .then(state => {
+                    document.getElementById('currentPlayer').textContent = state.current_player || '-';
+                    document.getElementById('roundNumber').textContent = state.round_number;
+                    
+                    updateBulletDisplay(state.bullets_used, state.chambers);
+                    
+                    if (state.selected_table) {
+                        document.getElementById('currentTable').textContent = state.selected_table;
+                    }
+                    
+                    if (state.players) {
+                        players = state.players;
+                        updatePlayerList();
+                        const orderPlayerList = document.getElementById('orderPlayerList');
+                        if (orderPlayerList) {
+                            orderPlayerList.innerHTML = '';
+                            players.forEach((player, index) => {
+                                const isCurrent = player === state.current_player;
+                                const avatar = playerAvatars[player] || getRandomAvatar();
+                                orderPlayerList.innerHTML += `
+                                    <div class="player-card ${isCurrent ? 'current' : ''}" style="animation-delay: ${index * 0.1}s">
+                                        <div class="avatar" style="background: ${avatar.gradient}">
+                                            ${avatar.emoji}
+                                        </div>
+                                        <p>${player}</p>
+                                    </div>
+                                `;
+                            });
+                        }
+                    }
+                    
+                    updateGamePlayerList();
+                    updateRoundStats(state.round_stats);
+                });
+        }
+
+        function updateRoundStats(roundStats) {
+            const roundStatsDiv = document.getElementById('roundStats');
+            if (!roundStats) return;
+            
+            let html = `
+                <h3>Round ${document.getElementById('roundNumber').textContent} Stats</h3>
+                <div class="round-summary">
+                    <p>Current Round Statistics</p>
+                </div>
+            `;
+            
+            for (const [player, stats] of Object.entries(roundStats)) {
+                const statusClass = stats.survived ? 'survived' : 'eliminated';
+                const avatar = playerAvatars[player] || getRandomAvatar();
+                html += `
+                    <div class="player-stats ${statusClass}">
+                        <div class="avatar" style="background: ${avatar.gradient}">
+                            ${avatar.emoji}
+                        </div>
+                        <span>${player}</span>
+                        <span>Bullets Used: ${stats.bullets}</span>
+                        <span>Status: ${stats.survived ? 'Survived' : 'Eliminated'}</span>
+                    </div>
+                `;
+            }
+            
+            roundStatsDiv.innerHTML = html;
+        }
+
+        async function resetScoreboard() {
+            const response = await fetch(BASE_URL + '/reset_scoreboard', {
+                method: 'POST'
+            });
+            const data = await response.json();
+            showMessage(data.message, 'success');
+            updateScoreboard();
+        }
+
+        async function loadPreviousPlayers() {
+            try {
+                const response = await fetch(BASE_URL + '/previous_players');
+                const previousPlayers = await response.json();
+                const previousPlayersList = document.getElementById('previousPlayersList');
+                previousPlayersList.innerHTML = '';
+                
+                previousPlayers.forEach(player => {
+                    if (!players.includes(player)) {
+                        const playerCard = document.createElement('div');
+                        playerCard.className = 'player-card';
+                        playerCard.style.cursor = 'pointer';
+                        playerCard.onclick = () => {
+                            document.getElementById('playerName').value = player;
+                            addPlayer();
+                        };
+                        
+                        const avatar = getRandomAvatar();
+                        playerCard.innerHTML = `
+                            <div class="avatar" style="background: ${avatar.gradient}">
+                                ${avatar.emoji}
+                            </div>
+                            <p>${player}</p>
+                        `;
+                        previousPlayersList.appendChild(playerCard);
+                    }
+                });
+            } catch (error) {
+                console.error('Error loading previous players:', error);
+            }
+        }
+
+        async function spin() {
+            const playerList = document.getElementById('orderPlayerList');
+            const spinButton = document.getElementById('spinButton');
+            const firstPlayerDisplay = document.getElementById('firstPlayerDisplay');
+            
+            firstPlayerDisplay.textContent = '';
+            
+            spinButton.disabled = true;
+            playerList.classList.add('spinning');
+            
+            try {
+                const response = await fetch(BASE_URL + '/spin', {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                await new Promise(resolve => setTimeout(resolve, 4500));
+                
+                if (data.success) {
+                    showMessage(data.message, 'success');
+                    const playerName = data.message.split('... ')[1].split(' goes')[0];
+                    firstPlayerDisplay.textContent = `First Player: ${playerName}`;
+                    firstPlayerDisplay.style.color = '#3498db';
+                    updateGameState();
+                } else {
+                    showMessage(data.message, 'error');
+                }
+            } catch (error) {
+                showMessage('Error spinning for first player', 'error');
+            } finally {
+                playerList.classList.remove('spinning');
+                spinButton.disabled = false;
+            }
+        }
+
+        function updateLastPlayedGrid() {
+            const lastPlayedGrid = document.getElementById('lastPlayedGrid');
+            lastPlayedGrid.innerHTML = '';
+            
+            // Get last 6 players who played
+            const lastPlayed = players.slice(-6);
+            
+            lastPlayed.forEach(player => {
+                const avatar = playerAvatars[player] || getRandomAvatar();
+                const card = document.createElement('div');
+                card.className = 'last-played-card';
+                card.onclick = () => {
+                    document.getElementById('playerName').value = player;
+                    addPlayer();
+                };
+                card.innerHTML = `
+                    <div class="avatar" style="background: ${avatar.gradient}">
+                        ${avatar.emoji}
+                    </div>
+                    <p>${player}</p>
+                `;
+                lastPlayedGrid.appendChild(card);
+            });
+        }
+
+        // Initialize the game
+        updateGameState();
+        
+        // Add event listener for Enter key on player name input
+        document.getElementById('playerName').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                addPlayer();
+            }
+        });
+    </script>
+</body>
+</html> 
