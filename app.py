@@ -10,7 +10,7 @@ BASE_URL = '/liarsbars_at_home'
 
 @app.route('/')
 def index():
-    return render_template('index.html', base_url=BASE_URL)
+    return render_template('index.html')
 
 @app.route('/manifest.json')
 def manifest():
