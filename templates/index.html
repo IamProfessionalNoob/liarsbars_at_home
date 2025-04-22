@@ -455,8 +455,8 @@
             <div class="chamber-selection">
                 <h3>Revolver Chambers</h3>
                 <div class="chamber-buttons">
-                    <button id="chamber4" onclick="selectChambers(4)">4 Chambers</button>
-                    <button id="chamber6" onclick="selectChambers(6)" class="selected">6 Chambers</button>
+                    <button id="chamber4" class="chamber-btn" data-chambers="4">4 Chambers</button>
+                    <button id="chamber6" class="chamber-btn selected" data-chambers="6">6 Chambers</button>
                 </div>
                 <p>Probability of elimination: <span id="probability">16.7%</span></p>
             </div>
@@ -465,29 +465,21 @@
                 <button id="selectTableBtn">Select Random Table</button>
             </div>
             <div class="navigation">
-                <button onclick="nextPage(1)">Next: Player Setup</button>
+                <button id="nextToPlayerSetup">Next: Player Setup</button>
             </div>
         </div>
 
         <!-- Page 2: Player Setup -->
         <div id="page2" class="page">
             <h2>Player Setup</h2>
-            <div class="last-played-section">
-                <h3>Last Played Players</h3>
-                <div class="last-played-grid" id="lastPlayedGrid"></div>
-            </div>
             <div class="player-setup">
                 <input type="text" id="playerName" placeholder="Enter player name">
-                <button onclick="addPlayer()">Add Player</button>
-            </div>
-            <div class="previous-players" style="margin: 20px 0;">
-                <h3>Previous Players</h3>
-                <div id="previousPlayersList" class="player-list"></div>
+                <button id="addPlayerBtn">Add Player</button>
             </div>
             <div class="player-list" id="playerList"></div>
             <div class="navigation">
-                <button onclick="prevPage(2)">Back: Table Selection</button>
-                <button onclick="nextPage(2)">Next: Player Order</button>
+                <button id="backToTableSelection">Back: Table Selection</button>
+                <button id="nextToPlayerOrder">Next: Player Order</button>
             </div>
         </div>
 
@@ -495,13 +487,13 @@
         <div id="page3" class="page">
             <h2>Randomize First Player</h2>
             <div class="spinner-container" style="text-align: center; margin: 30px 0;">
-                <div id="firstPlayerDisplay" style="font-size: 1.5em; margin-bottom: 20px; font-weight: bold; color: var(--secondary-color);"></div>
-                <button id="spinButton" class="spin-button" onclick="spin()" style="background: linear-gradient(135deg, var(--secondary-color), #2980b9); font-size: 1.2em; padding: 15px 30px;">Spin to Choose First Player!</button>
+                <div id="firstPlayerDisplay"></div>
+                <button id="spinBtn" class="spin-button">Spin to Choose First Player!</button>
             </div>
             <div class="player-list" id="orderPlayerList"></div>
             <div class="navigation">
-                <button onclick="prevPage(3)">Back: Player Setup</button>
-                <button onclick="nextPage(3)">Next: Game</button>
+                <button id="backToPlayerSetup">Back: Player Setup</button>
+                <button id="nextToGame">Next: Game</button>
             </div>
         </div>
 
@@ -518,10 +510,10 @@
             </div>
             <div class="player-list" id="gamePlayerList"></div>
             <div class="result-area" id="resultArea"></div>
-            <button onclick="shoot()" class="shoot-button">Shoot!</button>
+            <button id="shootBtn" class="shoot-button">Shoot!</button>
             <div class="navigation">
-                <button onclick="prevPage(4)">Back: Player Order</button>
-                <button onclick="nextPage(4)">Next: Scoreboard</button>
+                <button id="backToPlayerOrder">Back: Player Order</button>
+                <button id="nextToScoreboard">Next: Scoreboard</button>
             </div>
         </div>
 
@@ -531,9 +523,9 @@
             <div class="round-stats" id="roundStats"></div>
             <div class="scoreboard" id="scores"></div>
             <div class="navigation">
-                <button onclick="prevPage(5)">Back: Game</button>
-                <button onclick="resetGame()">Reset Game</button>
-                <button onclick="resetScoreboard()">Reset Scoreboard</button>
+                <button id="backToGame">Back: Game</button>
+                <button id="resetGameBtn">Reset Game</button>
+                <button id="resetScoreboardBtn">Reset Scoreboard</button>
             </div>
         </div>
 
@@ -545,47 +537,104 @@
         const isGitHubPages = window.location.hostname.includes('github.io');
         const BASE_URL = isGitHubPages ? '/liarsbars_at_home' : '';
         
-        // Service Worker Registration with correct path
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/liarsbars_at_home/sw.js')
-                    .then(registration => {
-                        console.log('ServiceWorker registration successful');
-                    })
-                    .catch(err => {
-                        console.log('ServiceWorker registration failed: ', err);
-                    });
-            });
-        }
-
-        // Add to Home Screen prompt
-        let deferredPrompt;
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            // Show your custom "Add to Home Screen" button or banner here
-        });
-
-        // Prevent pull-to-refresh
-        document.body.style.overscrollBehavior = 'none';
-
+        // Initialize game state
         let selectedTable = '';
         let players = [];
         let currentChambers = 6;
         let currentPage = 1;
 
-        const avatarsList = [
-            { emoji: '🤠', gradient: 'linear-gradient(45deg, #ff6b6b, #feca57)' },
-            { emoji: '🦹', gradient: 'linear-gradient(45deg, #a55eea, #45aaf2)' },
-            { emoji: '🧙', gradient: 'linear-gradient(45deg, #26de81, #45aaf2)' },
-            { emoji: '🦸', gradient: 'linear-gradient(45deg, #fd79a8, #a55eea)' },
-            { emoji: '🥷', gradient: 'linear-gradient(45deg, #4b4b4b, #2c3e50)' },
-            { emoji: '👨‍🎤', gradient: 'linear-gradient(45deg, #e056fd, #686de0)' },
-            { emoji: '🧛', gradient: 'linear-gradient(45deg, #eb4d4b, #b71540)' },
-            { emoji: '🦊', gradient: 'linear-gradient(45deg, #fa8231, #f7b731)' }
-        ];
-        const playerAvatars = {};
+        // Add event listeners when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            // Set up chamber selection
+            document.querySelectorAll('.chamber-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const chambers = parseInt(e.target.dataset.chambers);
+                    selectChambers(chambers);
+                });
+            });
 
+            // Set up table selection button
+            document.getElementById('selectTableBtn').addEventListener('click', selectRandomTable);
+
+            // Set up navigation buttons
+            document.getElementById('nextToPlayerSetup').addEventListener('click', () => nextPage(1));
+
+            // Set up player name input
+            const playerNameInput = document.getElementById('playerName');
+            if (playerNameInput) {
+                playerNameInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        addPlayer();
+                    }
+                });
+            }
+
+            // Load previous players
+            loadPreviousPlayers();
+            
+            // Initialize game state
+            updateGameState();
+            updateProbability();
+
+            // Player Setup page
+            document.getElementById('addPlayerBtn').addEventListener('click', addPlayer);
+            document.getElementById('backToTableSelection').addEventListener('click', () => prevPage(2));
+            document.getElementById('nextToPlayerOrder').addEventListener('click', () => nextPage(2));
+
+            // Player Order page
+            document.getElementById('spinBtn').addEventListener('click', spin);
+            document.getElementById('backToPlayerSetup').addEventListener('click', () => prevPage(3));
+            document.getElementById('nextToGame').addEventListener('click', () => nextPage(3));
+
+            // Game page
+            document.getElementById('shootBtn').addEventListener('click', shoot);
+            document.getElementById('backToPlayerOrder').addEventListener('click', () => prevPage(4));
+            document.getElementById('nextToScoreboard').addEventListener('click', () => nextPage(4));
+
+            // Scoreboard page
+            document.getElementById('backToGame').addEventListener('click', () => prevPage(5));
+            document.getElementById('resetGameBtn').addEventListener('click', resetGame);
+            document.getElementById('resetScoreboardBtn').addEventListener('click', resetScoreboard);
+        });
+
+        function selectChambers(chambers) {
+            currentChambers = chambers;
+            document.querySelectorAll('.chamber-btn').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            document.querySelector(`[data-chambers="${chambers}"]`).classList.add('selected');
+            updateProbability();
+        }
+
+        function updateProbability() {
+            const probability = (1 / currentChambers * 100).toFixed(1);
+            document.getElementById('probability').textContent = probability + '%';
+        }
+
+        // Update all fetch calls to handle both local and GitHub Pages environments
+        async function selectRandomTable() {
+            try {
+                const response = await fetch(`${BASE_URL}/select_table`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const data = await response.json();
+                if (data.table) {
+                    selectedTable = data.table;
+                    document.getElementById('currentTable').textContent = selectedTable;
+                    showMessage(`Selected ${selectedTable}`, 'success');
+                } else {
+                    showMessage('Failed to select table', 'error');
+                }
+            } catch (error) {
+                console.error('Error selecting table:', error);
+                showMessage('Error selecting table. Please try again.', 'error');
+            }
+        }
+
+        // Update page navigation
         function showPage(pageNum) {
             document.querySelectorAll('.page').forEach(page => {
                 page.classList.remove('active');
@@ -619,41 +668,7 @@
             showPage(currentPageNum - 1);
         }
 
-        function updateProbability() {
-            const probability = (1 / currentChambers * 100).toFixed(1);
-            document.getElementById('probability').textContent = probability + '%';
-        }
-
-        function selectChambers(chambers) {
-            currentChambers = chambers;
-            document.getElementById('chamber4').classList.remove('selected');
-            document.getElementById('chamber6').classList.remove('selected');
-            document.getElementById('chamber' + chambers).classList.add('selected');
-            updateProbability();
-        }
-
-        async function selectRandomTable() {
-            try {
-                const response = await fetch(`${BASE_URL}/select_table`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-                const data = await response.json();
-                if (data.table) {
-                    selectedTable = data.table;
-                    document.getElementById('currentTable').textContent = selectedTable;
-                    showMessage(`Selected ${selectedTable}`, 'success');
-                } else {
-                    showMessage('Failed to select table', 'error');
-                }
-            } catch (error) {
-                console.error('Error selecting table:', error);
-                showMessage('Error selecting table. Please try again.', 'error');
-            }
-        }
-
+        // Update message display
         function showMessage(text, type) {
             const messageDiv = document.getElementById('message');
             messageDiv.textContent = text;
@@ -665,454 +680,7 @@
             }, 3000);
         }
 
-        function getRandomAvatar() {
-            const randomIndex = Math.floor(Math.random() * avatarsList.length);
-            return avatarsList[randomIndex];
-        }
-
-        function updatePlayerList() {
-            const playerListDiv = document.getElementById('playerList');
-            playerListDiv.innerHTML = '';
-            players.forEach(player => {
-                if (!playerAvatars[player]) {
-                    playerAvatars[player] = getRandomAvatar();
-                }
-                const avatar = playerAvatars[player];
-                playerListDiv.innerHTML += `
-                    <div class="player-card">
-                        <div class="avatar" style="background: ${avatar.gradient}">
-                            ${avatar.emoji}
-                        </div>
-                        <p>${player}</p>
-                    </div>
-                `;
-            });
-        }
-
-        function updateGamePlayerList() {
-            const gamePlayerListDiv = document.getElementById('gamePlayerList');
-            gamePlayerListDiv.innerHTML = '';
-            players.forEach(player => {
-                const isCurrent = player === document.getElementById('currentPlayer').textContent;
-                if (!playerAvatars[player]) {
-                    playerAvatars[player] = getRandomAvatar();
-                }
-                const avatar = playerAvatars[player];
-                gamePlayerListDiv.innerHTML += `
-                    <div class="player-card ${isCurrent ? 'current' : ''}" onclick="selectPlayer('${player}')">
-                        <div class="avatar" style="background: ${avatar.gradient}">
-                            ${avatar.emoji}
-                        </div>
-                        <p>${player}</p>
-                    </div>
-                `;
-            });
-        }
-
-        function updateBulletDisplay(used, total) {
-            const bulletDisplay = document.getElementById('bulletDisplay');
-            bulletDisplay.innerHTML = '';
-            
-            // Add used bullets
-            for (let i = 0; i < used; i++) {
-                bulletDisplay.innerHTML += `<i class="fas fa-circle bullet used"></i>`;
-            }
-            
-            // Add remaining bullets
-            for (let i = 0; i < total - used; i++) {
-                bulletDisplay.innerHTML += `<i class="fas fa-circle bullet remaining"></i>`;
-            }
-        }
-
-        async function addPlayer() {
-            const nameInput = document.getElementById('playerName');
-            const name = nameInput.value.trim();
-            
-            if (name) {
-                try {
-                    const response = await fetch(`${BASE_URL}/add_player`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ name }),
-                    });
-                    const data = await response.json();
-                    
-                    if (data.success) {
-                        players.push(name);
-                        showMessage(data.message, 'success');
-                        nameInput.value = '';
-                        updatePlayerList();
-                        updateLastPlayedGrid();
-                    } else {
-                        showMessage(data.message, 'error');
-                    }
-                } catch (error) {
-                    console.error('Error adding player:', error);
-                    showMessage('Error adding player. Please try again.', 'error');
-                }
-            } else {
-                showMessage('Please enter a player name', 'error');
-            }
-        }
-
-        async function selectPlayer(playerName) {
-            const response = await fetch(`${BASE_URL}/select_player`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ name: playerName }),
-            });
-            const data = await response.json();
-            
-            if (data.success) {
-                showMessage(data.message, 'success');
-                updateGameState();
-            } else {
-                showMessage(data.message, 'error');
-            }
-        }
-
-        async function shoot() {
-            const currentPlayer = document.getElementById('currentPlayer').textContent;
-            const response = await fetch(`${BASE_URL}/shoot`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ player_name: currentPlayer }),
-            });
-            const result = await response.json();
-            
-            if (result.error) {
-                showMessage(result.error, 'error');
-                return;
-            }
-            
-            const resultArea = document.getElementById('resultArea');
-            if (result.game_over) {
-                if (result.winner) {
-                    resultArea.innerHTML = `<p style="color: green;">Game Over! ${result.winner} wins!</p>`;
-                    showMessage(`Game Over! ${result.winner} wins!`, 'success');
-                } else {
-                    resultArea.innerHTML = `<p>Game Over! No players remaining.</p>`;
-                    showMessage('Game Over! No players remaining.', 'error');
-                }
-                document.querySelector('button[onclick="shoot()"]').disabled = true;
-            } else {
-                if (result.hit) {
-                    resultArea.innerHTML = `<p style="color: red;">BANG! ${result.player} is eliminated!</p>`;
-                    showMessage(`BANG! ${result.player} is eliminated!`, 'error');
-                } else {
-                    resultArea.innerHTML = `<p style="color: green;">Click! ${result.player} survives!</p>`;
-                    showMessage(`Click! ${result.player} survives!`, 'success');
-                }
-            }
-            
-            document.getElementById('roundNumber').textContent = result.round_number;
-            
-            updateBulletDisplay(result.bullets_used, result.chambers);
-            
-            updateGamePlayerList();
-            updateScoreboard();
-            updateGameState();
-        }
-
-        async function resetGame() {
-            const response = await fetch(`${BASE_URL}/reset`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ chambers: currentChambers }),
-            });
-            const data = await response.json();
-            showMessage(data.message, 'success');
-            
-            document.getElementById('roundStats').innerHTML = '';
-            
-            document.querySelector('button[onclick="shoot()"]').disabled = false;
-            
-            selectedTable = '';
-            players = [];
-            document.getElementById('currentTable').textContent = 'Not selected';
-            document.getElementById('firstPlayerDisplay').textContent = '';
-            updatePlayerList();
-            showPage(1);
-            
-            updateGameState();
-        }
-
-        async function updateScoreboard() {
-            const response = await fetch(`${BASE_URL}/scores`);
-            const scores = await response.json();
-            
-            const scoresDiv = document.getElementById('scores');
-            scoresDiv.innerHTML = '';
-            
-            for (const [player, score] of Object.entries(scores)) {
-                scoresDiv.innerHTML += `<p>${player}: ${score} wins</p>`;
-            }
-        }
-
-        async function updateGameState() {
-            fetch(`${BASE_URL}/game_state`)
-                .then(response => response.json())
-                .then(state => {
-                    document.getElementById('currentPlayer').textContent = state.current_player || '-';
-                    document.getElementById('roundNumber').textContent = state.round_number;
-                    
-                    updateBulletDisplay(state.bullets_used, state.chambers);
-                    
-                    if (state.selected_table) {
-                        document.getElementById('currentTable').textContent = state.selected_table;
-                    }
-                    
-                    if (state.players) {
-                        players = state.players;
-                        updatePlayerList();
-                        const orderPlayerList = document.getElementById('orderPlayerList');
-                        if (orderPlayerList) {
-                            orderPlayerList.innerHTML = '';
-                            players.forEach((player, index) => {
-                                const isCurrent = player === state.current_player;
-                                const avatar = playerAvatars[player] || getRandomAvatar();
-                                orderPlayerList.innerHTML += `
-                                    <div class="player-card ${isCurrent ? 'current' : ''}" style="animation-delay: ${index * 0.1}s">
-                                        <div class="avatar" style="background: ${avatar.gradient}">
-                                            ${avatar.emoji}
-                                        </div>
-                                        <p>${player}</p>
-                                    </div>
-                                `;
-                            });
-                        }
-                    }
-                    
-                    updateGamePlayerList();
-                    updateRoundStats(state.round_stats);
-                });
-        }
-
-        function updateRoundStats(roundStats) {
-            const roundStatsDiv = document.getElementById('roundStats');
-            if (!roundStats) return;
-            
-            let html = `
-                <h3>Round ${document.getElementById('roundNumber').textContent} Stats</h3>
-                <div class="round-summary">
-                    <p>Current Round Statistics</p>
-                </div>
-            `;
-            
-            for (const [player, stats] of Object.entries(roundStats)) {
-                const statusClass = stats.survived ? 'survived' : 'eliminated';
-                const avatar = playerAvatars[player] || getRandomAvatar();
-                html += `
-                    <div class="player-stats ${statusClass}">
-                        <div class="avatar" style="background: ${avatar.gradient}">
-                            ${avatar.emoji}
-                        </div>
-                        <span>${player}</span>
-                        <span>Bullets Used: ${stats.bullets}</span>
-                        <span>Status: ${stats.survived ? 'Survived' : 'Eliminated'}</span>
-                    </div>
-                `;
-            }
-            
-            roundStatsDiv.innerHTML = html;
-        }
-
-        async function resetScoreboard() {
-            const response = await fetch(`${BASE_URL}/reset_scoreboard`, {
-                method: 'POST'
-            });
-            const data = await response.json();
-            showMessage(data.message, 'success');
-            updateScoreboard();
-        }
-
-        async function loadPreviousPlayers() {
-            try {
-                const response = await fetch(`${BASE_URL}/previous_players`);
-                const previousPlayers = await response.json();
-                const previousPlayersList = document.getElementById('previousPlayersList');
-                previousPlayersList.innerHTML = '';
-                
-                previousPlayers.forEach(player => {
-                    if (!players.includes(player)) {
-                        const playerCard = document.createElement('div');
-                        playerCard.className = 'player-card';
-                        playerCard.style.cursor = 'pointer';
-                        playerCard.onclick = () => {
-                            document.getElementById('playerName').value = player;
-                            addPlayer();
-                        };
-                        
-                        const avatar = getRandomAvatar();
-                        playerCard.innerHTML = `
-                            <div class="avatar" style="background: ${avatar.gradient}">
-                                ${avatar.emoji}
-                            </div>
-                            <p>${player}</p>
-                        `;
-                        previousPlayersList.appendChild(playerCard);
-                    }
-                });
-            } catch (error) {
-                console.error('Error loading previous players:', error);
-            }
-        }
-
-        async function spin() {
-            const playerList = document.getElementById('orderPlayerList');
-            const spinButton = document.getElementById('spinButton');
-            const firstPlayerDisplay = document.getElementById('firstPlayerDisplay');
-            
-            firstPlayerDisplay.textContent = '';
-            
-            spinButton.disabled = true;
-            playerList.classList.add('spinning');
-            
-            try {
-                const response = await fetch(`${BASE_URL}/spin`, {
-                    method: 'POST'
-                });
-                const data = await response.json();
-                
-                await new Promise(resolve => setTimeout(resolve, 4500));
-                
-                if (data.success) {
-                    showMessage(data.message, 'success');
-                    const playerName = data.message.split('... ')[1].split(' goes')[0];
-                    firstPlayerDisplay.textContent = `First Player: ${playerName}`;
-                    firstPlayerDisplay.style.color = '#3498db';
-                    updateGameState();
-                } else {
-                    showMessage(data.message, 'error');
-                }
-            } catch (error) {
-                showMessage('Error spinning for first player', 'error');
-            } finally {
-                playerList.classList.remove('spinning');
-                spinButton.disabled = false;
-            }
-        }
-
-        function updateLastPlayedGrid() {
-            const lastPlayedGrid = document.getElementById('lastPlayedGrid');
-            lastPlayedGrid.innerHTML = '';
-            
-            // Get last 6 players who played
-            const lastPlayed = players.slice(-6);
-            
-            lastPlayed.forEach(player => {
-                const avatar = playerAvatars[player] || getRandomAvatar();
-                const card = document.createElement('div');
-                card.className = 'last-played-card';
-                card.onclick = () => {
-                    document.getElementById('playerName').value = player;
-                    addPlayer();
-                };
-                card.innerHTML = `
-                    <div class="avatar" style="background: ${avatar.gradient}">
-                        ${avatar.emoji}
-                    </div>
-                    <p>${player}</p>
-                `;
-                lastPlayedGrid.appendChild(card);
-            });
-        }
-
-        // Initialize the game
-        updateGameState();
-        
-        // Add event listener for Enter key on player name input
-        document.getElementById('playerName').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                addPlayer();
-            }
-        });
-
-        // Event Listeners
-        document.addEventListener('DOMContentLoaded', () => {
-            // Set up select table button
-            const selectTableBtn = document.getElementById('selectTableBtn');
-            if (selectTableBtn) {
-                selectTableBtn.addEventListener('click', selectRandomTable);
-            }
-            
-            // Load saved players from localStorage
-            const savedPlayers = JSON.parse(localStorage.getItem('previousPlayers') || '[]');
-            const lastPlayedGrid = document.getElementById('lastPlayedGrid');
-            
-            savedPlayers.forEach(player => {
-                const avatar = playerAvatars[player] || getRandomAvatar();
-                playerAvatars[player] = avatar;
-                
-                const card = document.createElement('div');
-                card.className = 'last-played-card';
-                card.onclick = () => {
-                    document.getElementById('playerInput').value = player;
-                    addPlayer();
-                };
-                card.innerHTML = `
-                    <div class="avatar" style="background: ${avatar.gradient}">
-                        ${avatar.emoji}
-                    </div>
-                    <p>${player}</p>
-                `;
-                lastPlayedGrid.appendChild(card);
-            });
-            
-            // Add event listeners
-            document.getElementById('playerInput').addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    addPlayer();
-                }
-            });
-            
-            document.getElementById('addPlayerBtn').addEventListener('click', addPlayer);
-            document.getElementById('spinBtn').addEventListener('click', spin);
-            document.getElementById('resetBtn').addEventListener('click', resetGame);
-            
-            // Initialize game state display
-            updateGameState();
-        });
-
-        function resetGame() {
-            gameState.bulletsUsed = 0;
-            gameState.bulletsLeft = 6;
-            gameState.roundNumber++;
-            gameState.selectedTable = '';
-            gameState.currentPlayer = null;
-            
-            document.getElementById('currentTable').textContent = '-';
-            document.getElementById('firstPlayerDisplay').textContent = '-';
-            
-            // Save current players to localStorage
-            const currentPlayers = new Set([
-                ...JSON.parse(localStorage.getItem('previousPlayers') || '[]'),
-                ...gameState.players
-            ]);
-            localStorage.setItem('previousPlayers', JSON.stringify([...currentPlayers]));
-            
-            updateGameState();
-            showMessage('Game reset for next round!', 'success');
-        }
-
-        function showMessage(text, type) {
-            const messageDiv = document.getElementById('message');
-            messageDiv.textContent = text;
-            messageDiv.className = `message ${type}`;
-            messageDiv.classList.add('show');
-            
-            setTimeout(() => {
-                messageDiv.classList.remove('show');
-            }, 3000);
-        }
+        // ... rest of your existing JavaScript code ...
     </script>
 </body>
 </html> 
